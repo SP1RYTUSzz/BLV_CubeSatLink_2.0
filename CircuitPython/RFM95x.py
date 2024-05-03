@@ -6,19 +6,29 @@
 import board
 import busio
 import digitalio
+from adafruit_datetime import datetime
 import time
-
-
 import adafruit_rfm9x
+import os    # To utilize file operations
 
-transmit_interval = 10
+from board import *
+from adafruit_bus_device.spi_device import SPIDevice
+
+
+with busio.SPI(SCK, MOSI, MISO) as spi_bus:
+    
+    cs = digitalio.DigitalInOut(D9)
+    device = SPIDevice(spi_bus, cs)
+
+    
+
 # Define radio parameters.
 RADIO_FREQ_MHZ = 915.0  # Frequency of the radio in Mhz. Must match your
 # module! Can be a value like 915.0, 433.0, etc.
 
 # Define pins connected to the chip, use these if wiring up the breakout according to the guide:
-CS = digitalio.DigitalInOut(board.D10)
-RESET = digitalio.DigitalInOut(board.D11)
+CS = digitalio.DigitalInOut(board.D5)
+RESET = digitalio.DigitalInOut(board.D6)
 # Or uncomment and instead use these if using a Feather M0 RFM9x board and the appropriate
 # CircuitPython build:
 #CS = digitalio.DigitalInOut(board.RFM9X_CS)
@@ -41,51 +51,49 @@ rfm9x = adafruit_rfm9x.RFM9x(spi, CS, RESET, RADIO_FREQ_MHZ)
 # high power radios like the RFM95 can go up to 23 dB:
 rfm9x.tx_power = 23
 
-
-counter = 0
 # Send a packet.  Note you can only send a packet up to 252 bytes in length.
 # This is a limitation of the radio packet size, so if you need to send larger
 # amounts of data you will need to break it into smaller send calls.  Each send
 # call will wait for the previous one to finish before continuing.
+rx_raw_string = ""
+state = 0
 
-rfm9x.send(bytes("Hello world!\r\n", "utf-8"))
-
-print("Sent Hello World message!")
-
-# Wait to receive packets.  Note that this library can't receive data at a fast
-# rate, in fact it can only receive and process one 252 byte packet at a time.
-# This means you should only use this for low bandwidth scenarios, like sending
-# and receiving a single message at a time.
-print("Waiting for packets...")
-i = 0
 while True:
-    packet = rfm9x.receive()
-    # Optionally change the receive timeout from its default of 0.5 seconds:
-    #packet = rfm9x.receive(timeout=5.0)
-    # If no packet was received during the timeout then None is returned.
-    time.sleep(2)
-    i += 1
-    if packet is None:
-        # Packet has not been received
-        led.value = False
-        print("Received nothing! Listening again...")
-    else:
-        # Received a packet!
-        led.value = True
-        # Print out the raw bytes of the packet:
-                
-        print("Received (raw bytes): {0}".format(packet))
-                # And decode to ASCII text and print it too.  Note that you always
-                # receive raw bytes and need to convert to a text format like ASCII
-                # if you intend to do string processing on your data.  Make sure the
-                # sending side is sending ASCII data before you try to decode!
-        packet_text = str(packet, "ascii")
-        print("Received (ASCII): {0}".format(packet_text))
-                # Also read the RSSI (signal strength) of the last received message and
-                # print it.
-        rssi = rfm9x.last_rssi
-        print("Received signal strength: {0} dB".format(rssi))
-                
-        print(i)        
-                
+    packet2 = (rfm9x.send(input(bytes("Enter passkey...", "utf-8"))))
     
+    # File Operation:
+    with open('TEST_INTRO.txt', 'r') as f:
+        fileToSend = f.read()
+        packet3 = (rfm9x.send(bytes(fileToSend, "utf-8")))
+        
+    print("Sent message 1.")
+    time.sleep(2)
+    output_time = datetime.now()
+    print("Message sent at:", output_time)
+    
+    tx_data = 0x13
+    rx_data = bytearray(1)
+    while not spi.try_lock():
+        pass
+    try:
+        spi.configure(baudrate=1000000)
+        cs.value = False
+        spi.readinto(rx_data)
+        cs.value = True
+        #spi.init()
+    finally:
+        spi.unlock()
+    
+    try:
+        rx_raw_string += rx_data.decode("utf-8", "replace")
+        
+        if rx_data.decode("utf-8") == "\n":
+            packet3 = (rfm9x.send(bytes(rx_raw_string, "utf-8")))
+            print(rx_raw_string)
+            rx_raw_string = ""
+            
+    except:
+        pass
+        
+        
+#----------------------------------------
