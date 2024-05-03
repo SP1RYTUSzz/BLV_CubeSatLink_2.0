@@ -1,3 +1,7 @@
+/*
+Dual UART-SPI
+Originally created by Tri Do
+*/
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
