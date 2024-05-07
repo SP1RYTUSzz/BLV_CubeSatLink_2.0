@@ -2,7 +2,7 @@
 Dual UART-SPI
 Originally created by Tri Do
 */
-#include <stdio.h>
+//  #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include "pico/stdlib.h"
@@ -11,7 +11,7 @@ Originally created by Tri Do
 
 #define BUF_LEN         0x100
 #define FIFO_LEN        32
-
+/*
 void printbuf(uint8_t buf[], size_t len) {
     int i;
     for (i = 0; i < len; ++i) {
@@ -26,6 +26,7 @@ void printbuf(uint8_t buf[], size_t len) {
         putchar('\n');
     }
 }
+*/
 
 int main() {
     // Enable UART so we can print
@@ -54,10 +55,11 @@ int main() {
     uart_set_format(uart1, 8, 1, UART_PARITY_NONE);
     }
 
-    uint8_t UART_tx_String0[] = "BBBBBBBBBBBBBBBBBBB\n";
-    uint8_t UART_tx_String1[] = "This is a test message from Pico\n";
+    uint8_t UART_tx_String0[255] = "BBBBBBBBBBBBBBBBBBB\n";
+    uint8_t UART_tx_String1[255] = "This is a test message from Pico\n";
     uint8_t SPI_send_buf[1], SPI_receive_buf[1];          //CHANGE: this was BUF_LEN
-    
+    uint8_t UART_tx_channel[1] = "#";     //select which uart to send message to (per char)
+    uint8_t UART_rx_channel[1] = "#";
     //indices
     int UART0wIndex = 0;             //this index is for UART0 write a single character at a time
     int UART1wIndex = 0;             //this index is for UART1 write a single character at a time
@@ -73,6 +75,7 @@ int main() {
         }
         if (uart_is_readable(uart1)) {              //read char from UART RX
             uart_read_blocking(uart1, SPI_send_buf, 1);
+            spi_write_read_blocking(spi_default, UART_rx_channel, UART_tx_channel, 1);  //not sure about the order
             spi_write_read_blocking(spi_default, SPI_send_buf, SPI_receive_buf, 1);
             
             //whatever just tryna print it
@@ -83,21 +86,6 @@ int main() {
             }
         }
 
-        /*
-        //duplication for UART2 (WIP)
-        if (uart_is_writable(uart0)) {
-            uart_putc(uart0, SendData0[UART1wIndex++]);
-            if (UART0wIndex >= strlen(SendData0)) {
-                UART0wIndex = 0;
-            }
-        }
-        if (uart_is_readable(uart0)) {              //read char from UART RX
-            uart_read_blocking(uart0, buf, 1);
-            if (true) {
-                spi_write_read_blocking(spi_default, buf, in_buf, 1);
-            }
-        }
-        */
     }
 #endif
 }
