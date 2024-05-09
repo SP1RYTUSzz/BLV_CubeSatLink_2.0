@@ -67,31 +67,73 @@ int main() {
 
     uint8_t Tx_channel[1], Rx_channel[1];
     uint8_t UART0_rx_char[1],  UART1_rx_char[1],  UART0_tx_char[1],  UART1_tx_char[1];
+    uint8_t UART0_rx_string[255], UART1_rx_string[255];
+    uint8_t SPI0_send_string[255], SPI1_send_string[255];
+    uint8_t SPI0_send_char[1], SPI1_send_char[1];
+
+    int UART0_rx_index = 0, UART1_rx_index = 0;
+    int SPI0_index = 0, SPI1_index = 0;
 
     Tx_channel[0] = '`';
     UART0_rx_char[0] = 'n';
     UART1_rx_char[0] = 'm';
     while (true) {
+        if (SPI0_send_string != NULL && SPI0_index < strlen(SPI0_send_string)) {
+            *SPI0_send_char = SPI0_send_string[SPI0_index];
+            if (*SPI0_send_char == '\n') {
+                strcpy(SPI0_send_string, "");
+                SPI0_index = 0;
+            }
+            SPI0_index++;
+        } else {
+            *SPI0_send_char = '\0';
+        }
+        if (SPI1_send_string != NULL && SPI1_index < strlen(SPI1_send_string)) {
+            *SPI1_send_char = SPI1_send_string[SPI1_index];
+            if (*SPI1_send_char == '\n') {
+                strcpy(SPI1_send_string, "");
+                SPI1_index = 0;
+            }
+            SPI1_index++;
+        } else {
+            *SPI1_send_char = '\0';
+        }
         spi_write_read_blocking(spi_default, Tx_channel, Rx_channel, 1);
-        if () {
-            spi_write_read_blocking(spi_default, UART1_rx_char, UART1_tx_char, 1);
-            spi_write_read_blocking(spi_default, UART0_rx_char, UART0_tx_char, 1); //flipped cus UART rx is SPI tx
+        spi_write_read_blocking(spi_default, SPI0_send_char, UART1_tx_char, 1);
+        spi_write_read_blocking(spi_default, SPI1_send_char, UART0_tx_char, 1); //flipped cus UART rx is SPI tx
 
-            if (uart_is_writable(uart0)) {
-                uart_putc(uart0, UART0_tx_char[0]);
+        if (uart_is_writable(uart0)) {
+            uart_putc(uart0, UART0_tx_char[0]);
+        }
+        if (uart_is_writable(uart1)) {
+            uart_putc(uart1, UART1_tx_char[0]);
+        }
+        while (uart_is_readable(uart0)) {
+            uart_read_blocking(uart0, UART0_rx_char, 1);
+            UART0_rx_string[UART0_rx_index++] = *UART0_rx_char;
+            if (UART0_rx_index >= 255) {
+                UART0_rx_index = 0;
+                *UART0_rx_char = '\n';
             }
-            if (uart_is_writable(uart1)) {
-                uart_putc(uart1, UART1_tx_char[0]);
-            }Rx_channel[0] == '#'
-            if (uart_is_readable(uart0)) {
-                uart_read_blocking(uart0, UART0_rx_char, 1);
-            } else {
-                UART0_rx_char[0] = 0;
+            if (*UART0_rx_char == '\n') {
+                UART0_rx_index = 0;
+                for (int i = 0; i < 255; i++) {
+                    SPI0_send_string[i] = UART0_rx_string[i];
+                }
             }
-            if (uart_is_readable(uart1)) {
-                uart_read_blocking(uart1, UART1_rx_char, 1);
-            } else {
-                UART0_rx_char[0] = 0;
+        }
+        while (uart_is_readable(uart1)) {
+            uart_read_blocking(uart1, UART1_rx_char, 1);
+            UART1_rx_string[UART1_rx_index++] = *UART1_rx_char;
+            if (UART1_rx_index >= 255) {
+                UART1_rx_index = 0;
+                *UART1_rx_char = '\n';
+            }
+            if (*UART1_rx_char == '\n') {
+                UART1_rx_index = 0;
+                for (int i = 0; i < 255; i++) {
+                    SPI1_send_string[i] = UART1_rx_string[i];
+                }
             }
         }
     }
