@@ -1,3 +1,7 @@
+"""
+Feather and RFM95 module integration
+SPI communication by Tri Do
+"""
 from machine import Pin, SPI 
 import utime 
 
@@ -57,13 +61,11 @@ while (True):
             if (rxData1.decode('utf-8', 'ignore') == '\n'):
                 print("Message from UART1: ", rxString1)
                 rxString1 = ""
-        """
-        if (rxData1 != '\x00'):
-            print(rxData0, rxData1)
-        if (rxData0 != '\x00'):
-            print(rxData0, rxData1)
-        """
-        utime.sleep_us(100)
+        
+        #print(rxData0, rxData1)
+        
+        
+        utime.sleep_us(10000)
     except UnicodeError:
         print("Unicode Error time ", UnicodeErrorOccurence)
         UnicodeErrorOccurence += 1
