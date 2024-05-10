@@ -15,38 +15,30 @@ from adafruit_bus_device.spi_device import SPIDevice
 RADIO_FREQ_MHZ = 915.0  # Frequency of the radio in Mhz. Must match your
 # module! Can be a value like 915.0, 433.0, etc.
 
-# Define pins connected to the chip, use these if wiring up the breakout according to the guide:
 #These are for RFM9x, not SPI
 CS = digitalio.DigitalInOut(board.D10)
 RESET = digitalio.DigitalInOut(board.D11)
 
+cs = digitalio.DigitalInOut(D25)		#for SPI cs
+cs.direction = digitalio.Direction.OUTPUT
+cs.value = True
 
 # Define the onboard LED
 led = digitalio.DigitalInOut(board.LED)
 led.direction = digitalio.Direction.OUTPUT
 
 #init SPI
+"""
 with busio.SPI(SCK, MOSI, MISO) as spi_bus:
     cs = digitalio.DigitalInOut(D25)
     device = SPIDevice(spi_bus, cs)
+"""
 # Initialize SPI bus.y
 spi = busio.SPI(board.SCK, MOSI=board.MOSI, MISO=board.MISO)
 
 # Initialze RFM radio
-rfm9x = adafruit_rfm9x.RFM9x(spi, CS, RESET, RADIO_FREQ_MHZ)
-
-# Note that the radio is configured in LoRa mode so you can't control sync
-# word, encryption, frequency deviation, or other settings!
-
-# You can however adjust the transmit power (in dB).  The default is 13 dB but
-# high power radios like the RFM95 can go up to 23 dB:
-rfm9x.tx_power = 23
-
-# Send a packet.  Note you can only send a packet up to 252 bytes in length.
-# This is a limitation of the radio packet size, so if you need to send larger
-# amounts of data you will need to break it into smaller send calls.  Each send
-# call will wait for the previous one to finish before continuing.
-
+#	rfm9x = adafruit_rfm9x.RFM9x(spi, CS, RESET, RADIO_FREQ_MHZ)
+#	rfm9x.tx_power = 23 #power: 13dB default, 23dB max
 
 #Starting Tri's code
 #allocate memory
@@ -58,9 +50,16 @@ tx_data0 = bytearray(1)
 rx_data0 = bytearray(1)
 tx_data1 = bytearray(1)
 rx_data1 = bytearray(1)
+rx_list0 = [chr(i) for i in range(256)]
+rx_list1 = [chr(i) for i in range(256)]
+rx_0_index = 0
+rx_1_index = 0
 selection = bytearray(1)    #see which UART Pico is receiving and relaying from
 i0 = 0       #index for time message repeated
 i1 = 0
+flag0 = False
+flag1 = False
+unicode_error_occurence = 0
 
 while True:
     """
@@ -109,28 +108,42 @@ while True:
             cs.value = False
             spi.write_readinto(b'#', selection)
             cs.value = True
-            if (True):			#selection == b'`':
+            if (selection == b'`'):			#selection == b'`':
                 cs.value = False
                 spi.write_readinto(tx_data0, rx_data0)
                 cs.value = True
-                print(tx_data0, rx_data0)
+                #print(selection, rx_data0)
                 cs.value = False
                 spi.write_readinto(tx_data1, rx_data1)
                 cs.value = True
-                rx_string0 += rx_data0.decode('utf-8', 'ignore')
+                rx_list0[rx_0_index] = rx_data0.decode('utf-8', 'ignore')
+                rx_0_index += 1
+                rx_list1[rx_1_index] = rx_data1.decode('utf-8', 'ignore')
+                rx_1_index += 1
+
+                print(rx_data0, rx_data1)
                 if rx_data0.decode('utf-8', 'ignore') == '\n':
-                    rfm9x.send(bytes("Message from UART0: ", rx_string0))
+                    flag0 = True
+                    rx_string0 = ''.join(rx_list0)
                     print("Message from UART0: ", rx_string0)
-                    rx_string0 = ""
-                rx_string1 += rx_data1.decode('utf-8', 'ignore')
+                    rx_string0 = ''
+                    rx_0_index = 0
                 if rx_data1.decode('utf-8', 'ignore') == '\n':
-                    rfm9x.send(bytes("Message from UART1: ", rx_string1))
+                    flag1 = True
+                    rx_string1 = ''.join(rx_list1)
                     print("Message from UART1: ", rx_string1)
-                    rx_string1 = ""
+                    rx_string1 = ''
+                    rx_1_index = 0
 
                 # print(rx_data0, rx_data1)
         finally:
             spi.unlock()
+        if flag0 == True:
+            #	rfm9x.send(bytes("Message from UART0: ", rx_string0))
+            flag0 = False
+        if flag1 == True:
+            #	rfm9x.send(bytes("Message from UART1: ", rx_string1))
+            flag1 = False
 
         time.sleep(0.01)
     except UnicodeError:
