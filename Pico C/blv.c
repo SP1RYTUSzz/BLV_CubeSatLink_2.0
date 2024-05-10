@@ -82,7 +82,7 @@ int main() {
             *SPI0_send_char = SPI0_send_string[SPI0_index];
             if (*SPI0_send_char == '\n') {
                 strcpy(SPI0_send_string, "");
-                SPI0_index = 0;
+                SPI0_index = -1;
             }
             SPI0_index++;
         } else {
@@ -92,7 +92,7 @@ int main() {
             *SPI1_send_char = SPI1_send_string[SPI1_index];
             if (*SPI1_send_char == '\n') {
                 strcpy(SPI1_send_string, "");
-                SPI1_index = 0;
+                SPI1_index = -1;
             }
             SPI1_index++;
         } else {
