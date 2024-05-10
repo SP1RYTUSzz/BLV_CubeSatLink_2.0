@@ -37,8 +37,8 @@ with busio.SPI(SCK, MOSI, MISO) as spi_bus:
 spi = busio.SPI(board.SCK, MOSI=board.MOSI, MISO=board.MISO)
 
 # Initialze RFM radio
-#	rfm9x = adafruit_rfm9x.RFM9x(spi, CS, RESET, RADIO_FREQ_MHZ)
-#	rfm9x.tx_power = 23 #power: 13dB default, 23dB max
+rfm9x = adafruit_rfm9x.RFM9x(spi, CS, RESET, RADIO_FREQ_MHZ)
+rfm9x.tx_power = 23 #power: 13dB default, 23dB max
 
 #Starting Tri's code
 #allocate memory
@@ -50,8 +50,8 @@ tx_data0 = bytearray(1)
 rx_data0 = bytearray(1)
 tx_data1 = bytearray(1)
 rx_data1 = bytearray(1)
-rx_list0 = [chr(i) for i in range(256)]
-rx_list1 = [chr(i) for i in range(256)]
+rx_list0 = []
+rx_list1 = []
 rx_0_index = 0
 rx_1_index = 0
 selection = bytearray(1)    #see which UART Pico is receiving and relaying from
@@ -108,41 +108,43 @@ while True:
             cs.value = False
             spi.write_readinto(b'#', selection)
             cs.value = True
-            if (selection == b'`'):			#selection == b'`':
+            if (selection == b'`'):
                 cs.value = False
                 spi.write_readinto(tx_data0, rx_data0)
                 cs.value = True
-                #print(selection, rx_data0)
                 cs.value = False
                 spi.write_readinto(tx_data1, rx_data1)
                 cs.value = True
-                rx_list0[rx_0_index] = rx_data0.decode('utf-8', 'ignore')
-                rx_0_index += 1
-                rx_list1[rx_1_index] = rx_data1.decode('utf-8', 'ignore')
-                rx_1_index += 1
-
-                print(rx_data0, rx_data1)
+                if rx_data0 != b'\x00':
+                    rx_list0.append(rx_data0.decode('utf-8', 'ignore'))
+                    rx_0_index += 1
+                if rx_data1 != b'\x00':
+                    rx_list1.append(rx_data1.decode('utf-8', 'ignore'))
+                    rx_1_index += 1
+                print(selection, rx_data0, rx_data1)
                 if rx_data0.decode('utf-8', 'ignore') == '\n':
                     flag0 = True
                     rx_string0 = ''.join(rx_list0)
                     print("Message from UART0: ", rx_string0)
-                    rx_string0 = ''
+                    
                     rx_0_index = 0
                 if rx_data1.decode('utf-8', 'ignore') == '\n':
                     flag1 = True
                     rx_string1 = ''.join(rx_list1)
                     print("Message from UART1: ", rx_string1)
-                    rx_string1 = ''
+                    
                     rx_1_index = 0
 
                 # print(rx_data0, rx_data1)
         finally:
             spi.unlock()
         if flag0 == True:
-            #	rfm9x.send(bytes("Message from UART0: ", rx_string0))
+            rfm9x.send(bytes("Message from UART0: ", rx_string0))
+            rx_list0 = []
             flag0 = False
         if flag1 == True:
-            #	rfm9x.send(bytes("Message from UART1: ", rx_string1))
+            rfm9x.send(bytes("Message from UART1: ", rx_string1))
+            rx_list1 = []
             flag1 = False
 
         time.sleep(0.01)
