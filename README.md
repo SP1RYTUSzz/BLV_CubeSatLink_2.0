@@ -1,7 +1,7 @@
 # BLV-Uplink-Downlink
 
 ## Overview
-CubeSatLink is a software project to establish a reliable communication link between a ground station and several student-built CubeSats (small satellites) attached to a flying weather balloon mission. The project aims to provide a robust and efficient communication system for CubeSat missions with minimal effort on the student's side, enabling quick prototyping of the yearlong Balloon Launch Assessment Directive for Everyone (BLADE) launched in Summer-Fall.
+CubeSatLink is a software and hardware project to establish a reliable communication link between a ground station and several student-built CubeSats (small satellites) attached to a flying weather balloon mission. The project aims to provide a robust and efficient communication system for CubeSat missions with minimal effort on the student's side, enabling quick prototyping of the yearlong Balloon Launch Assessment Directive for Everyone (BLADE) launched in Summer-Fall.
 
 ## Features
 **Reliable Data Transfer**: CubeSatLink ensures reliable data transfer between the CubeSat and the ground station, even in errors or packet loss.
