@@ -5,13 +5,18 @@ CubeSatLink is a software project to establish a reliable communication link bet
 
 ## Features
 **Reliable Data Transfer**: CubeSatLink ensures reliable data transfer between the CubeSat and the ground station, even in errors or packet loss.
+
 **Flexible Configuration**: The project allows for flexible configuration of communication parameters, such as data rates, packet sizes, data bits, stop bits, and parity controls.
+
 **Ground Station Software**: The project includes a comprehensive ground station software suite for monitoring received packets, and sending instructions to CubeSats through console terminal.
+
 **SDCard Memory Support**: The ground station supports data storage on an SDCard for permanent storage of sent and received data in case of ground station malfunction.
 
 ## Technical Details
 **Programming Languages**: The project is written in C++ and Python.
+
 **Communication Protocols**: The system utilizes UART and SPI communication protocols. It is designed to accommodate UTF-8 encoded string for both communication directions.
+
 **Hardware Requirements**: The project is designed to work with various CubeSat hardware platforms given the variety of student hardware and the number of CubeSats launched.
 
 ## Contributing
