@@ -29,4 +29,4 @@ BLV_CubeSatLink is licensed under the MIT License.
 The BLV_CubeSatLink project is developed and maintained by SP1RYTUSzz for Cal Poly Pomona's BroncoSpace. We acknowledge the contributions of all developers, testers, and users who have helped shape this project. :")
 
 ## Contact
-For questions, issues, or feedback, please open an issue on GitHub or contact the project maintainer at trisdo37@gmail.com.
+For questions, issues, or feedback, please open an issue on GitHub or contact the project maintainer.
