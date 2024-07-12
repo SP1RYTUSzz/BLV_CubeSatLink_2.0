@@ -130,7 +130,7 @@ while True:
                 cs.value = False
                 spi.write_readinto(tx_data1, rx_data1)
                 cs.value = True
-                print(rx_data0, rx_data1)
+                #print(rx_data0, rx_data1)
                 if rx_data0 != b'\x00':
                     rx_list0.append(rx_data0.decode('utf-8', 'ignore'))
                     rx_0_index += 1
@@ -142,13 +142,13 @@ while True:
                     flag0 = True
                     rx_string0 = ''.join(rx_list0)
                     print("Message from UART0: ", rx_string0)
-                    
+                    led.value = not led.value
                     rx_0_index = 0
                 if rx_data1.decode('utf-8', 'ignore') == '\n':
                     flag1 = True
                     rx_string1 = ''.join(rx_list1)
                     print("Message from UART1: ", rx_string1)
-                    
+                    led.value = not led.value
                     rx_1_index = 0
 
                 # print(rx_data0, rx_data1)
@@ -163,8 +163,7 @@ while True:
             rx_list1 = []
             flag1 = False
 
-        time.sleep(0.001)
+        time.sleep(0.03)
     except UnicodeError:
         print("Unicode Error time ", unicode_error_occurence)
         unicode_error_occurence += 1
-
