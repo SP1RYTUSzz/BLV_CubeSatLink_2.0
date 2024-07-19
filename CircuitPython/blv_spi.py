@@ -64,27 +64,19 @@ i1 = 0
 flag0 = False
 flag1 = False
 unicode_error_occurence = 0
-"""
-time.sleep(0.5)
-pico_en.value = True
-time.sleep(1)
-"""
 
 MAX_BUF = 255
 while True:
-    """
-    packet2 = (rfm9x.send(input(bytes("Enter passkey...", "utf-8"))))
+    #RECEIVE SECTION
+    packet = rfm9x.receive()
+    if packet is None:
+        print("Received nothing!")
+    else:
+        print("Received (ASCII): {0}".format(str(packet, "ascii")))
+        print("RSSI: {0} dB, SNR: {1} dB.".format(rfm9x.last_rssi, rfm9x.last_snr))
     
-    # File Operation sending:
-    with open('TEST_INTRO.txt', 'r') as f:
-        fileToSend = f.read()
-        packet3 = (rfm9x.send(bytes(fileToSend, "utf-8")))
-    print("Sent message 1.")
-    time.sleep(2)
-    output_time = datetime.now()
-    print("Message sent at:", output_time)
-    """
-    
+    #This delay is to help rfm push the send before receiving
+    time.sleep(0.04)
     while not spi.try_lock():
         pass
     try:
@@ -130,7 +122,7 @@ while True:
                 cs.value = False
                 spi.write_readinto(tx_data1, rx_data1)
                 cs.value = True
-                print(rx_data0, rx_data1)
+                #print(rx_data0, rx_data1)
                 if rx_data0 != b'\x00':
                     rx_list0.append(rx_data0.decode('utf-8', 'ignore'))
                     rx_0_index += 1
@@ -142,13 +134,13 @@ while True:
                     flag0 = True
                     rx_string0 = ''.join(rx_list0)
                     print("Message from UART0: ", rx_string0)
-                    
+                    led.value = not led.value
                     rx_0_index = 0
                 if rx_data1.decode('utf-8', 'ignore') == '\n':
                     flag1 = True
                     rx_string1 = ''.join(rx_list1)
                     print("Message from UART1: ", rx_string1)
-                    
+                    led.value = not led.value
                     rx_1_index = 0
 
                 # print(rx_data0, rx_data1)
@@ -163,8 +155,6 @@ while True:
             rx_list1 = []
             flag1 = False
 
-        time.sleep(0.001)
     except UnicodeError:
         print("Unicode Error time ", unicode_error_occurence)
         unicode_error_occurence += 1
-
