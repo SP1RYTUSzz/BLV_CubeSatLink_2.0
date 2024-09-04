@@ -30,3 +30,6 @@ The BLV_CubeSatLink project is developed and maintained by SP1RYTUSzz for Cal Po
 
 ## Contact
 For questions, issues, or feedback, please open an issue on GitHub or contact the project maintainer.
+
+## Others
+BLV cutaway system now moved: https://github.com/SP1RYTUSzz/BLV_Cutaway
