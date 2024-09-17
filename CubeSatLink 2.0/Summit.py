@@ -1,3 +1,5 @@
+# BLV Summit Commit 9/10
+#
 import time
 import board
 import busio
@@ -15,9 +17,10 @@ spi = busio.SPI(board.SCK, MOSI=board.MOSI, MISO=board.MISO)
 # Initialze RFM radio
 rfm9x = adafruit_rfm9x.RFM9x(spi, CS, RESET, RADIO_FREQ_MHZ)
 
-
-rfm9x.ack_delay = 0.1    # set delay before transmitting ACK (seconds)
-rfm9x.node = 2          # set node addresses
+# set delay before transmitting ACK (seconds)
+rfm9x.ack_delay = 0.1
+# set node addresses
+rfm9x.node = 2
 rfm9x.destination = 1
 # initialize counter
 counter = 0
@@ -49,3 +52,4 @@ while True:
         ):
             ack_failed_counter += 1
             print(" No Ack: ", counter, ack_failed_counter)
+
