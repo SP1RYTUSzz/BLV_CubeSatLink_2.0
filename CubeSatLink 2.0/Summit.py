@@ -1,5 +1,6 @@
-# Example to send a packet periodically between addressed nodes with ACK
-# Author: Jerry Needell
+# CubeSatLink Flight Transceiver Node (Summit)
+# Connect to antenna before plug any power in
+# Author: Tri Do
 #
 import time
 import board
