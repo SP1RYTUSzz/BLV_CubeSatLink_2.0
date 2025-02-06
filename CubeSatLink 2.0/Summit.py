@@ -1,7 +1,7 @@
 # CubeSatLink Flight Transceiver Node (Summit)
 # Connect to antenna before plug any power in
 # Author: Tri Do
-#
+
 import time
 import board
 import busio
@@ -11,7 +11,7 @@ import adafruit_rfm9x
 # Initialize UART bus
 uart = busio.UART(board.TX, board.RX, baudrate=9600, bits = 8, parity = None, timeout=0)
 message_started = False
-uplink_message = "ur gey"
+uplink_message = "ur gey\n"
 uart_char_buffer = bytearray()
 uart_rx_string = bytearray()
 
@@ -55,7 +55,7 @@ print("Waiting for packets...")
 # initialize flag and timer
 time_now = time.monotonic()
 uart_now=time.monotonic()
-
+text2send = ""
 while True:
     # Look for a new packet: only accept if addresses to my_node
     packet = rfm9x.receive(with_ack=True, with_header=True)
@@ -91,7 +91,7 @@ while True:
         counter += 1
         # send a  mesage to destination_node from my_node
         if not rfm9x.send_with_ack(
-            bytes("message from node node {} {}".format(rfm9x.node, counter), "UTF-8")
+            bytes("message from node {} {}. Message {}".format(rfm9x.node, counter, text2send), "UTF-8")
         ):
             ack_failed_counter += 1
             print(" No Ack: ", counter, ack_failed_counter)
