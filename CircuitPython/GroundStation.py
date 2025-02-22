@@ -29,8 +29,15 @@ try:
     sdcard = sdcardio.SDCard(spi, CS_SD)
     vfs = storage.VfsFat(sdcard)
     storage.mount(vfs, "/sd")
+    # Write headers for the SD Card data
+    with open("/sd/DownlinkData.txt", "a") as f:		#a for append, w for write
+        f.write("\n-----------RESTARTED-------------\n")	#formatting in term of #. [Message]
+        f.write("{GroundStation counter, Summit counter. [Message]}\n")
+        f.flush()
+        print("Message wrote to SD")
 except OSError as e:
     print("ERROR: SD CARD INIT FAILED, NO SD MOST LIKELY")
+
 # Initialize RFM95
 rfm9x = adafruit_rfm9x.RFM9x(spi, CS_RFM, RESET, RADIO_FREQ_MHZ, agc = True)
 
@@ -70,11 +77,11 @@ while True:
         # Write received data to SD
         try:
             with open("/sd/DownlinkData.txt", "a") as f:		#a for append, w for write
-                f.write(str(counter).encode()+". "+packet[4:])	#formatting in term of #. [Message]
+                f.write((str(counter)+", "+hex(packet[2])+". ").encode()+packet[4:]+"\n")	#formatting in term of #. [Message]
                 f.flush()
                 print("Message wrote to SD")
         except OSError as e:
-            print("SD Card write error")
+            print("SD Card write error. Is SD Card loose?")
         counter += 1
         # send a  mesage to destination_node from my_node
         if not rfm9x.send_with_ack(
