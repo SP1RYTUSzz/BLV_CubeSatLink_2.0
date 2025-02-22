@@ -11,12 +11,12 @@ import adafruit_rfm9x
 # Initialize UART bus
 uart = busio.UART(board.TX, board.RX, baudrate=9600, bits = 8, parity = None, timeout=0)
 message_started = False
-uplink_message = "Summit checking in.\n"
+uplink_message = "Summit checking in with a long ass message here bro whatever should I write in here. Behind Great Ideas. Phytecsssss.\n"
 uart_char_buffer = bytearray()
 uart_rx_string = bytearray()
 
 # set the time interval (seconds) for sending packets
-transmit_interval = 5
+transmit_interval = 3
 
 # Define radio parameters.
 RADIO_FREQ_MHZ = 902.0  # Frequency of the radio in Mhz. Must match your
@@ -27,6 +27,9 @@ RADIO_FREQ_MHZ = 902.0  # Frequency of the radio in Mhz. Must match your
 CS = digitalio.DigitalInOut(board.D10)
 RESET = digitalio.DigitalInOut(board.D11)
 
+led = digitalio.DigitalInOut(board.LED)
+led.direction = digitalio.Direction.OUTPUT
+
 # Initialize SPI bus.
 spi = busio.SPI(board.SCK, MOSI=board.MOSI, MISO=board.MISO)
 # Initialze RFM radio
@@ -35,7 +38,7 @@ rfm9x = adafruit_rfm9x.RFM9x(spi, CS, RESET, RADIO_FREQ_MHZ, agc = True)
 # rfm9x post-config
 rfm9x.enable_crc = True
 rfm9x.tx_power = 23
-rfm9x.spreading_factor = 9
+rfm9x.spreading_factor = 7
 rfm9x.coding_rate = 8
 #rfm9x.signal_bandwidth = 7800
 rfm9x.ack_delay = 0.1		# set delay before sending ACK
@@ -47,7 +50,9 @@ counter = 0
 ack_failed_counter = 0
 # initialize flag and timer
 time_now = time.monotonic()
+tnow = time.monotonic()
 uart_now=time.monotonic()
+text2send = ""
 
 # send startup message from my_node
 rfm9x.send_with_ack(bytes("startup message from node {}".format(rfm9x.node), "UTF-8"))
@@ -55,7 +60,10 @@ print("Waiting for packets...")
 
 
 while True:
-    text2send = ""
+     # Status LED blink
+    if (time.monotonic() - tnow > 0.25):
+        led.value = not led.value
+        tnow=time.monotonic()
     # Look for a new packet: only accept if addresses to my_node
     packet = rfm9x.receive(with_ack=True, with_header=True)
     # If no packet was received during the timeout then None is returned.
@@ -75,15 +83,16 @@ while True:
         uart_rx_string = uart_rx_string + uart_char_buffer
         #	print(uart_rx_string)
     if uart_rx_string.decode('utf-8', 'ignore') != '':
-        print("UART RX:", uart_rx_string.decode('utf-8', 'ignore'))
         text2send = uart_rx_string.decode('utf-8', 'ignore')
         uart_rx_string = bytearray()
+        print("UART RX:", text2send)
         
     # UART Transmit
     if (time.monotonic() - uart_now > transmit_interval):
         uart_now = time.monotonic()
         uart.write(uplink_message)
-        print("Sent '{}' to UART device".format(uplink_message))
+        print("Sent to UART device")
+        print(text2send)
 
     # send reading after any packet received
     if time.monotonic() - time_now > transmit_interval:
@@ -93,7 +102,7 @@ while True:
         print("Sending UART RX to GroundBLV")
         # send a  mesage to destination_node from my_node
         if not rfm9x.send_with_ack(
-            bytes("message from SUMMIT2 {}. Message {}".format(counter, text2send), "UTF-8")
+            bytes("Summit2: " + text2send, "UTF-8")
         ):
             ack_failed_counter += 1
             print(" No Ack: ", counter, ack_failed_counter)
