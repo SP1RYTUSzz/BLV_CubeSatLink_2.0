@@ -35,7 +35,7 @@ rfm9x = adafruit_rfm9x.RFM9x(spi, CS, RESET, RADIO_FREQ_MHZ, agc = True)
 # enable CRC checking
 rfm9x.enable_crc = True
 rfm9x.tx_power = 23
-rfm9x.spreading_factor = 9
+rfm9x.spreading_factor = 8
 rfm9x.coding_rate = 8
 #rfm9x.signal_bandwidth = 7800
 
