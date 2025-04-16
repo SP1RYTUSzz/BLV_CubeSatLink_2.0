@@ -37,7 +37,7 @@ ack_failed_counter = 0
 rfm9x.tx_power = 23
 rfm9x.coding_rate = 8
 #rfm9x.signal_bandwidth = 7800
-rfm9x.spreading_factor = 9		#higher = lower bitrate
+rfm9x.spreading_factor = 8		#higher = lower bitrate
 
 # Wait to receive packets.
 print("Waiting for packets...")
