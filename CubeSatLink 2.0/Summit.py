@@ -9,12 +9,12 @@ import digitalio
 import adafruit_rfm9x
 
 # Initialize UART bus
-uart0 = busio.UART(board.TX, board.RX, baudrate=9600, bits = 8, parity = None, timeout=0)
-uart1 = busio.UART(board.D24, board.D25, baudrate=9600, bits = 8, parity = None, timeout=0)
+uart0 = busio.UART(board.TX, board.RX, baudrate=9600, bits = 8, parity = None, timeout=1)
+uart1 = busio.UART(board.D24, board.D25, baudrate=9600, bits = 8, parity = None, timeout=1)
 message_started = False
 
 # set the time interval (seconds) for sending packets
-transmit_interval = 3
+transmit_interval = 10
 
 # Define radio parameters.
 RADIO_FREQ_MHZ = 902.0
@@ -49,7 +49,7 @@ NoAck_cnt = 0
 time_now = time.monotonic()
 tnow = time.monotonic()
 uart0_now=time.monotonic()
-text2send = ""
+uart0_receiving = ""
 
 # send startup message from my_node
 rfm9x.send_with_ack(bytes("startup message from node {}".format(rfm9x.node), "UTF-8"))
@@ -62,18 +62,21 @@ def Blink_Status_LED():
     
 def UART_Tx(uart,msg):
     if (msg != None):
-        uart.write(bytes(msg, 'utf-8'))
+        uart.write(msg)
         print("({}). UART transmitting: {}".format(len(msg), msg))
     else:
         print('No UART Tx Message...')
+        
 def UART_Rx(uart):
     char_buffer = bytearray()
     rx_string = bytearray()
     while uart.in_waiting > 0:
         char_buffer = uart.read(1)
         rx_string = rx_string + char_buffer
-    if rx_string.decode('utf-8','replace') != '':			#not empty
-        return rx_string.decode('utf-8','ignore')
+    string = ''.join([chr(b) for b in rx_string])
+    return string
+    #.decode('utf-8','replace') != '':			#not empty
+    #    return rx_string.decode('utf-8','ignore')
         
 def RFM_Tx(msg, counter, ack_failed_counter):
     counter += 1
@@ -99,18 +102,17 @@ while True:
     Blink_Status_LED()
     uplink_message = RFM_Rx()
     # uplink_message = "Summit checking in. Behind Great Ideas. Phytecsssss.\n"
-    print(uplink_message)
+    print("RFM Recieved:",uplink_message)
     
-    text2send = UART_Rx(uart0)
-    receiving2 = UART_Rx(uart1)
-    if (text2send == None):
-        #UART Receive
-        text2send = "no message from UART"
-    print(text2send)
-    if (receiving2 == None):
-        #UART Receive
-        receiving2 = "no message"
-    print('Receiving2:',receiving2)
+    uart0_receiving = UART_Rx(uart0)
+    uart1_receiving = UART_Rx(uart1)
+    if (uart0_receiving == None):
+        uart0_receiving = "no message from UART"
+    print(uart0_receiving)
+    if (uart1_receiving == None):
+        uart1_receiving = "no message"
+    print(len(uart0_receiving),'uart0_receiving:',uart0_receiving)
+    print(len(uart1_receiving),'uart1_receiving:',uart1_receiving)
     
     if (time.monotonic() - uart0_now > transmit_interval):
         # UART Transmit. send a message every [transmit_interval] seconds. will be gone when uplink is implemented
@@ -122,9 +124,9 @@ while True:
     if time.monotonic() - time_now > transmit_interval:
         # send reading after any packet received
         time_now = time.monotonic()
-        RFM_Tx(text2send, cnt, NoAck_cnt)
-        print('--------------RFM Tx----------------')
-        
+        RFM_Tx(uart0_receiving, cnt, NoAck_cnt)
+    
+    print("-----END LOOP-----")
     time.sleep(0.1)
         
     # except Exception as e:
