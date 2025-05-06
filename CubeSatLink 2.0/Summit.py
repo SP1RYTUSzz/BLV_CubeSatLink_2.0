@@ -8,30 +8,23 @@ import busio
 import digitalio
 import adafruit_rfm9x
 
-# Initialize UART bus
-uart0 = busio.UART(board.TX, board.RX, baudrate=9600, bits = 8, parity = None, timeout=1)
-uart1 = busio.UART(board.D24, board.D25, baudrate=9600, bits = 8, parity = None, timeout=1)
-message_started = False
+# constants (interval)
+transmit_interval = 5
+RFMTimeOut = 10
+uartTxInterval = 3
 
-# set the time interval (seconds) for sending packets
-transmit_interval = 10
-
-# Define radio parameters.
-RADIO_FREQ_MHZ = 902.0
-
-# Define pins connected to the chip.
-# set GPIO pins as necessary -- this example is for Raspberry Pi
-CS = digitalio.DigitalInOut(board.D10)
-RESET = digitalio.DigitalInOut(board.D11)
 
 led = digitalio.DigitalInOut(board.LED)
 led.direction = digitalio.Direction.OUTPUT
 
-# Initialize SPI bus.
-spi = busio.SPI(board.SCK, MOSI=board.MOSI, MISO=board.MISO)
-# Initialze RFM radio
-rfm9x = adafruit_rfm9x.RFM9x(spi, CS, RESET, RADIO_FREQ_MHZ, agc = True)
+uart0 = busio.UART(board.TX, board.RX, baudrate=9600, bits = 8, parity = None, timeout=1)
+uart1 = busio.UART(board.D24, board.D25, baudrate=9600, bits = 8, parity = None, timeout=1)
 
+RADIO_FREQ_MHZ = 902.0
+CS = digitalio.DigitalInOut(board.D10)
+RESET = digitalio.DigitalInOut(board.D11)
+spi = busio.SPI(board.SCK, MOSI=board.MOSI, MISO=board.MISO)
+rfm9x = adafruit_rfm9x.RFM9x(spi, CS, RESET, RADIO_FREQ_MHZ, agc = True)
 # rfm9x post-config
 rfm9x.enable_crc = True
 rfm9x.tx_power = 23
@@ -39,16 +32,14 @@ rfm9x.spreading_factor = 8
 rfm9x.coding_rate = 8
 #rfm9x.signal_bandwidth = 7800
 rfm9x.ack_delay = 0.1		# set delay before sending ACK
-rfm9x.node = 1				# set node addresses
+rfm9x.node = 1
 rfm9x.destination = 2
 
-# initialize counter
-cnt = 0
-NoAck_cnt = 0
 # initialize flag and timer
-time_now = time.monotonic()
-tnow = time.monotonic()
-uart0_now=time.monotonic()
+time_now = 0
+tnow = 0
+uart_now = 0
+rfmWatchdog = 0
 uart0_receiving = ""
 
 # send startup message from my_node
@@ -77,15 +68,32 @@ def UART_Rx(uart):
     return string
     #.decode('utf-8','replace') != '':			#not empty
     #    return rx_string.decode('utf-8','ignore')
-        
-def RFM_Tx(msg, counter, ack_failed_counter):
-    counter += 1
-    print("Airing received messages from to GroundBLV")
+     
+cnt = 0
+def incCnt():
+    global cnt
+    cnt += 1
+def dspCnt():
+    global cnt
+    return cnt
+NoAck_cnt = 0
+def incNAK():
+    global NoAck_cnt
+    NoAck_cnt += 1
+
+def petRFMWatchdog():
+    global rfmWatchdog
+    rfmWatchdog = time.monotonic()
+    
+def RFM_Tx(cust,msg):
+    incCnt()
+    full_msg = f"{cust}, {msg}"
+    print(f"Airing Downlink with Message: {full_msg}")
     if not rfm9x.send_with_ack(
-        bytes("Summit2: " + msg, "UTF-8")
+        bytes(full_msg, "UTF-8")
     ):
-        ack_failed_counter += 1
-        print(" No Ack: ", counter, ack_failed_counter)
+        incNAK()
+        print("Tx No Ack: ")
         
 def RFM_Rx():
     # Look for packet. Print header, payload, RSSI, SNR
@@ -96,38 +104,57 @@ def RFM_Rx():
         print("RSSI: {0}, SNR: {1}".format(rfm9x.last_rssi, rfm9x.last_snr))
         return packet[4:]
         
-
+uart0_receiving = ''
+uart1_receiving = ''
 while True:
-    # try:
-    Blink_Status_LED()
-    uplink_message = RFM_Rx()
-    # uplink_message = "Summit checking in. Behind Great Ideas. Phytecsssss.\n"
-    print("RFM Recieved:",uplink_message)
-    
-    uart0_receiving = UART_Rx(uart0)
-    uart1_receiving = UART_Rx(uart1)
-    if (uart0_receiving == None):
-        uart0_receiving = "no message from UART"
-    print(uart0_receiving)
-    if (uart1_receiving == None):
-        uart1_receiving = "no message"
-    print(len(uart0_receiving),'uart0_receiving:',uart0_receiving)
-    print(len(uart1_receiving),'uart1_receiving:',uart1_receiving)
-    
-    if (time.monotonic() - uart0_now > transmit_interval):
-        # UART Transmit. send a message every [transmit_interval] seconds. will be gone when uplink is implemented
-        uart_now = time.monotonic()
-        UART_Tx(uart0,uplink_message)
-        msg2 = "testing uart2"
-        UART_Tx(uart1,msg2)
-
-    if time.monotonic() - time_now > transmit_interval:
-        # send reading after any packet received
-        time_now = time.monotonic()
-        RFM_Tx(uart0_receiving, cnt, NoAck_cnt)
-    
-    print("-----END LOOP-----")
-    time.sleep(0.1)
+#     try:
+        Blink_Status_LED()
         
-    # except Exception as e:
-    #     print(e)
+        # RFM Tx 
+#     	if time.monotonic() - time_now > transmit_interval:
+            # send reading after any packet received
+        time_now = time.monotonic()
+        if (time.monotonic() - rfmWatchdog > RFMTimeOut):
+            petRFMWatchdog()
+            RFM_Tx('S',"Link healthy, No UART Message")
+        if (uart0_receiving != ''):
+            petRFMWatchdog()
+            cust = hex(0)
+            RFM_Tx(cust,uart0_receiving)
+            uart0_receiving = ''
+        if (uart1_receiving != ''):
+            petRFMWatchdog()
+            cust = hex(1)
+            RFM_Tx(cust,uart1_receiving)
+            uart1_receiving = ''
+        
+        # UART Rx
+        uart0_receiving = UART_Rx(uart0)
+        uart1_receiving = UART_Rx(uart1)
+        if (uart0_receiving == ''):
+            pass
+        else:
+            print(len(uart0_receiving),'uart0_receiving:',uart0_receiving)
+        if (uart1_receiving == ''):
+            pass
+        else:
+            print(len(uart1_receiving),'uart1_receiving:',uart1_receiving)
+
+    #     #RFM Rx
+    #     uplink_message = RFM_Rx()
+        uplink_message = "Summit checking in. Behind Great Ideas. Phytecsssss.\n"
+    #     print("RFM Recieved:",uplink_message)
+        
+        # UART Tx
+        if (time.monotonic() - uart_now > uartTxInterval):
+            # UART Transmit. send a message every [transmit_interval] seconds. will be gone when uplink is implemented
+            uart_now = time.monotonic()
+            UART_Tx(uart0,uplink_message)
+            msg1 = "testing uart1"
+            UART_Tx(uart1,msg1)
+            
+    #     print("-----END LOOP-----")
+        time.sleep(0.1)
+            
+#     except Exception as e:
+#         print(e)
