@@ -122,12 +122,15 @@ def RFM_Rx():
         print("Received (raw payload): {0}".format(packet[4:]))
         print("RSSI: {0}, SNR: {1}".format(rfm9x.last_rssi, rfm9x.last_snr))
         SD_Write_Dev(packet)
-        if packet[4] == 0x0:
+        if packet[4] == 0x41:
             SD_Write_Customer("/sd/Cube0Data.csv",packet)
-        elif packet[4] == 0x1:
+        elif packet[4] == 0x42:
             SD_Write_Customer("/sd/Cube1Data.csv",packet)
-        elif packet[4] == 0x2:
+        elif packet[4] == 0x43:
             SD_Write_Customer("/sd/Cube2Data.csv",packet)
+        elif packet[4] == 0x53:
+            SD_Write_Dev(packet)
+            print("Double written to Dev.csv")
         else:
             print("SD Write Destination Error. Missing Destination Header packet[4]! Check flight transceiver")
         incCnt()
@@ -138,6 +141,7 @@ def Blink_Status_LED():
     led.value = not led.value
     tnow=time.monotonic()
 
+##### maybe implement more robust LED?
 # START ROUTINE
 SD_Init()
 print("Waiting for packets...")
