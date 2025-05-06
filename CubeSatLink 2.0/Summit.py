@@ -8,23 +8,30 @@ import busio
 import digitalio
 import adafruit_rfm9x
 
-# constants (interval)
+# Initialize UART bus
+uart0 = busio.UART(board.TX, board.RX, baudrate=9600, bits = 8, parity = None, timeout=1)
+uart1 = busio.UART(board.D24, board.D25, baudrate=9600, bits = 8, parity = None, timeout=1)
+message_started = False
+
+# set the time interval (seconds) for sending packets
 transmit_interval = 5
 RFMTimeOut = 10
-uartTxInterval = 3
+# Define radio parameters.
+RADIO_FREQ_MHZ = 902.0
 
+# Define pins connected to the chip.
+# set GPIO pins as necessary -- this example is for Raspberry Pi
+CS = digitalio.DigitalInOut(board.D10)
+RESET = digitalio.DigitalInOut(board.D11)
 
 led = digitalio.DigitalInOut(board.LED)
 led.direction = digitalio.Direction.OUTPUT
 
-uart0 = busio.UART(board.TX, board.RX, baudrate=9600, bits = 8, parity = None, timeout=1)
-uart1 = busio.UART(board.D24, board.D25, baudrate=9600, bits = 8, parity = None, timeout=1)
-
-RADIO_FREQ_MHZ = 902.0
-CS = digitalio.DigitalInOut(board.D10)
-RESET = digitalio.DigitalInOut(board.D11)
+# Initialize SPI bus.
 spi = busio.SPI(board.SCK, MOSI=board.MOSI, MISO=board.MISO)
+# Initialze RFM radio
 rfm9x = adafruit_rfm9x.RFM9x(spi, CS, RESET, RADIO_FREQ_MHZ, agc = True)
+
 # rfm9x post-config
 rfm9x.enable_crc = True
 rfm9x.tx_power = 23
@@ -104,6 +111,7 @@ def RFM_Rx():
         print("RSSI: {0}, SNR: {1}".format(rfm9x.last_rssi, rfm9x.last_snr))
         return packet[4:]
         
+uartTxInterval = 3
 uart0_receiving = ''
 uart1_receiving = ''
 while True:
@@ -119,12 +127,12 @@ while True:
             RFM_Tx('S',"Link healthy, No UART Message")
         if (uart0_receiving != ''):
             petRFMWatchdog()
-            cust = hex(0)
+            cust = 'A'
             RFM_Tx(cust,uart0_receiving)
             uart0_receiving = ''
         if (uart1_receiving != ''):
             petRFMWatchdog()
-            cust = hex(1)
+            cust = 'B'
             RFM_Tx(cust,uart1_receiving)
             uart1_receiving = ''
         
