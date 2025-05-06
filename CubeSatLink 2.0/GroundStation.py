@@ -51,7 +51,7 @@ def SD_Init():
         # Write headers for the SD Card data
         with open("/sd/Dev.csv", "a") as f:		#a for append, w for write
             f.write("\n-----------STARTED-------------\n")	#formatting in term of #. [Message]
-            f.write("{GroundStation cnt,Summit cnt,CubeSat #,RSSI,SNR, Message\n")
+            f.write("time (ms),GroundStation cnt,Summit cnt,CubeSat #,RSSI,SNR, Message\n")
             f.flush()
             print("SD Headers wrote to Dev.csv")
         for cust in range(3):
@@ -83,7 +83,8 @@ def SD_Write_Dev(packet):
     try:
         with open("/sd/Dev.csv", "a") as f:		#a for append, w for write
             f.write(
-                "{}, {}, {}, {}, {}, Msg:, {}\n".format(
+                "{}, {}, {}, {}, {}, {}, Msg:, {}\n".format(
+                    round(time.monotonic(),3),
                     hex(counter),
                     hex(packet[2]),
                     hex(packet[4]),
@@ -147,9 +148,9 @@ SD_Init()
 print("Waiting for packets...")
 while True:
     Blink_Status_LED()
-    if (time.monotonic() - tnow > TxInterval):
-        tnow = time.monotonic()
-        Tx_message = "GroundBLV checking {}".format(rfm9x.node, counter)
-        RFM_Tx(Tx_message)
+#     if (time.monotonic() - tnow > TxInterval):
+#         tnow = time.monotonic()
+#         Tx_message = "GroundBLV checking {}".format(rfm9x.node, counter)
+#         RFM_Tx(Tx_message)
     RFM_Rx()
     time.sleep(0.1)
