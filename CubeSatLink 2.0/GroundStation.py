@@ -25,18 +25,6 @@ led.direction = digitalio.Direction.OUTPUT
 # Initialize SPI bus 
 spi = busio.SPI(board.SCK, MOSI=board.MOSI, MISO=board.MISO)
 # Initialize SD Card Module
-try:
-    sdcard = sdcardio.SDCard(spi, CS_SD)
-    vfs = storage.VfsFat(sdcard)
-    storage.mount(vfs, "/sd")
-    # Write headers for the SD Card data
-    with open("/sd/DownlinkData.txt", "a") as f:		#a for append, w for write
-        f.write("\n-----------RESTARTED-------------\n")	#formatting in term of #. [Message]
-        f.write("{GroundStation counter, Summit counter. [Message]}\n")
-        f.flush()
-        print("Message wrote to SD")
-except OSError as e:
-    print("ERROR: SD CARD INIT FAILED, NO SD MOST LIKELY")
 
 # Initialize RFM95
 rfm9x = adafruit_rfm9x.RFM9x(spi, CS_RFM, RESET, RADIO_FREQ_MHZ, agc = True)
@@ -61,31 +49,53 @@ def SD_Init():
         vfs = storage.VfsFat(sdcard)
         storage.mount(vfs, "/sd")
         # Write headers for the SD Card data
-        with open("/sd/DownlinkData.txt", "a") as f:		#a for append, w for write
-            f.write("\n-----------RESTARTED-------------\n")	#formatting in term of #. [Message]
-            f.write("{GroundStation cnt,Summit cnt,RSSI,SNR. [Message]}\n")
+        with open("/sd/Dev.csv", "a") as f:		#a for append, w for write
+            f.write("\n-----------STARTED-------------\n")	#formatting in term of #. [Message]
+            f.write("{GroundStation cnt,Summit cnt,CubeSat #,RSSI,SNR, Message\n")
             f.flush()
-            print("SD Headers wrote to SD")
+            print("SD Headers wrote to Dev.csv")
+        for cust in range(3):
+            with open(f"/sd/Cube{cust}Data.csv", "a") as f:		#a for append, w for write
+                f.write("\n-----------STARTED-------------\n")	#formatting in term of #. [Message]
+                f.write("Count 1,Count 2,CubeSat #, Message\n")
+                f.flush()
+                print("SD Headers wrote to File:", f"Cube{cust}Data.csv")
     except OSError as e:
         print("ERROR: SD CARD INIT FAILED, NO SD MOST LIKELY")
         
-def SD_Write_TelemetryMessage(fileName,packet):
+def SD_Write_Customer(fileName,packet):
     try:
         with open(fileName, "a") as f:		#a for append, w for write
             f.write(
-                "{}, {}, {}, {}. Msg: [{}]\n".format(
+                "{}, {}, {}, Msg:, {}\n".format(
                     hex(counter),
                     hex(packet[2]),
+                    hex(packet[4]),
+                    ''.join([chr(b) for b in packet[5:]])		#packet[4:], decoded from bytearray to str
+                )
+            )
+            f.flush()
+            print("Message wrote to SD file ", fileName)
+    except OSError as e:
+        print("SD Card write error at Customer. Is SD Card loose?")
+
+def SD_Write_Dev(packet):
+    try:
+        with open("/sd/Dev.csv", "a") as f:		#a for append, w for write
+            f.write(
+                "{}, {}, {}, {}, {}, Msg:, {}\n".format(
+                    hex(counter),
+                    hex(packet[2]),
+                    hex(packet[4]),
                     rfm9x.last_rssi,
                     rfm9x.last_snr,
                     ''.join([chr(b) for b in packet[4:]])		#packet[4:], decoded from bytearray to str
                 )
             )
             f.flush()
-            print("Message wrote to SD file ", fileName)
+            print("Message wrote to SD file Dev.csv")
     except OSError as e:
-        print("SD Card write error. Is SD Card loose?")
-
+        print("SD Card write error at Dev. Is SD Card loose?")
 counter = 0
 def incCnt():
     global counter
@@ -111,16 +121,15 @@ def RFM_Rx():
         print("Received (raw header):", [hex(x) for x in packet[0:4]])
         print("Received (raw payload): {0}".format(packet[4:]))
         print("RSSI: {0}, SNR: {1}".format(rfm9x.last_rssi, rfm9x.last_snr))
+        SD_Write_Dev(packet)
         if packet[4] == 0x0:
-            SD_Write_TelemetryMessage("/sd/Cube0Data.txt",packet)
+            SD_Write_Customer("/sd/Cube0Data.csv",packet)
         elif packet[4] == 0x1:
-            SD_Write_TelemetryMessage("/sd/Cube1Data.txt",packet)
+            SD_Write_Customer("/sd/Cube1Data.csv",packet)
         elif packet[4] == 0x2:
-            SD_Write_TelemetryMessage("/sd/Cube2Data.txt",packet)
-        elif packet[4] == 0x53:# 'S' in utf-8
-            SD_Write_TelemetryMessage("/sd/Dev.txt",packet)
+            SD_Write_Customer("/sd/Cube2Data.csv",packet)
         else:
-            print("SD Write Destination Error! Check flight transceiver")
+            print("SD Write Destination Error. Missing Destination Header packet[4]! Check flight transceiver")
         incCnt()
         
     
@@ -130,6 +139,7 @@ def Blink_Status_LED():
     tnow=time.monotonic()
 
 # START ROUTINE
+SD_Init()
 print("Waiting for packets...")
 while True:
     Blink_Status_LED()
