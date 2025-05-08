@@ -1,5 +1,6 @@
 # CubeSatLink Flight Transceiver Node (Summit)
 # Connect to antenna before plug any power in
+# NOTE: UART Pinout. It is flipped by adafruit design, we can't change it to be logical.
 # Author: Tri Do
 
 import time
@@ -13,25 +14,18 @@ uart0 = busio.UART(board.TX, board.RX, baudrate=9600, bits = 8, parity = None, t
 uart1 = busio.UART(board.D24, board.D25, baudrate=9600, bits = 8, parity = None, timeout=1)
 message_started = False
 
-# set the time interval (seconds) for sending packets
+uartTxInterval = 1
 transmit_interval = 5
 RFMTimeOut = 10
-# Define radio parameters.
-RADIO_FREQ_MHZ = 902.0
-
-# Define pins connected to the chip.
-# set GPIO pins as necessary -- this example is for Raspberry Pi
-CS = digitalio.DigitalInOut(board.D10)
-RESET = digitalio.DigitalInOut(board.D11)
 
 led = digitalio.DigitalInOut(board.LED)
 led.direction = digitalio.Direction.OUTPUT
 
-# Initialize SPI bus.
+RADIO_FREQ_MHZ = 902.0
+CS = digitalio.DigitalInOut(board.D10)
+RESET = digitalio.DigitalInOut(board.D11)
 spi = busio.SPI(board.SCK, MOSI=board.MOSI, MISO=board.MISO)
-# Initialze RFM radio
 rfm9x = adafruit_rfm9x.RFM9x(spi, CS, RESET, RADIO_FREQ_MHZ, agc = True)
-
 # rfm9x post-config
 rfm9x.enable_crc = True
 rfm9x.tx_power = 23
@@ -39,8 +33,8 @@ rfm9x.spreading_factor = 8
 rfm9x.coding_rate = 8
 #rfm9x.signal_bandwidth = 7800
 rfm9x.ack_delay = 0.1		# set delay before sending ACK
-rfm9x.node = 1
-rfm9x.destination = 2
+rfm9x.node = 8
+rfm9x.destination = 7
 
 # initialize flag and timer
 time_now = 0
@@ -70,7 +64,10 @@ def UART_Rx(uart):
     rx_string = bytearray()
     while uart.in_waiting > 0:
         char_buffer = uart.read(1)
-        rx_string = rx_string + char_buffer
+        if (char_buffer == '\n'):
+            break
+        else:
+            rx_string = rx_string + char_buffer
     string = ''.join([chr(b) for b in rx_string])
     return string
     #.decode('utf-8','replace') != '':			#not empty
@@ -80,13 +77,16 @@ cnt = 0
 def incCnt():
     global cnt
     cnt += 1
-def dspCnt():
+def readCnt():
     global cnt
     return cnt
 NoAck_cnt = 0
 def incNAK():
     global NoAck_cnt
     NoAck_cnt += 1
+def readNAK():
+    global NoAck_cnt
+    return NoAck_cnt
 
 def petRFMWatchdog():
     global rfmWatchdog
@@ -100,7 +100,7 @@ def RFM_Tx(cust,msg):
         bytes(full_msg, "UTF-8")
     ):
         incNAK()
-        print("Tx No Ack: ")
+        print(f"Tx No Ack: {readCnt()} {readNAK()}")
         
 def RFM_Rx():
     # Look for packet. Print header, payload, RSSI, SNR
@@ -111,11 +111,10 @@ def RFM_Rx():
         print("RSSI: {0}, SNR: {1}".format(rfm9x.last_rssi, rfm9x.last_snr))
         return packet[4:]
         
-uartTxInterval = 3
 uart0_receiving = ''
 uart1_receiving = ''
 while True:
-#     try:
+    try:
         Blink_Status_LED()
         
         # RFM Tx 
@@ -150,7 +149,7 @@ while True:
 
     #     #RFM Rx
     #     uplink_message = RFM_Rx()
-        uplink_message = "Summit checking in. Behind Great Ideas. Phytecsssss.\n"
+        uplink_message = "Summit checking in. Behind Great Ideas. Phytecssssssadhfkjdshasdh whatever lorem ipsum.\n"
     #     print("RFM Recieved:",uplink_message)
         
         # UART Tx
@@ -164,5 +163,5 @@ while True:
     #     print("-----END LOOP-----")
         time.sleep(0.1)
             
-#     except Exception as e:
-#         print(e)
+    except Exception as e:
+        print(e)
