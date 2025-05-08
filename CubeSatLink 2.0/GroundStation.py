@@ -10,35 +10,26 @@ import adafruit_rfm9x
 import sdcardio
 import storage
 
-# FIELD CONFIG PARAMETERS
-RADIO_FREQ_MHZ = 902.0
-
-# Declare SPI pins
-RESET = digitalio.DigitalInOut(board.D11)
-CS_RFM = digitalio.DigitalInOut(board.D10)
-CS_SD = board.D4
-# Declare on-board LED status blink
 led = digitalio.DigitalInOut(board.LED)
 led.direction = digitalio.Direction.OUTPUT
 
-
-# Initialize SPI bus 
+# FIELD CONFIG PARAMETERS
+RADIO_FREQ_MHZ = 902.0
+RESET = digitalio.DigitalInOut(board.D11)
+CS_RFM = digitalio.DigitalInOut(board.D10)
+CS_SD = board.D4
 spi = busio.SPI(board.SCK, MOSI=board.MOSI, MISO=board.MISO)
-# Initialize SD Card Module
-
-# Initialize RFM95
 rfm9x = adafruit_rfm9x.RFM9x(spi, CS_RFM, RESET, RADIO_FREQ_MHZ, agc = True)
-
 
 # Radio config
 rfm9x.tx_power = 23
-rfm9x.coding_rate = 8
+rfm9x.coding_rate = 6
 #rfm9x.signal_bandwidth = 7800
 rfm9x.spreading_factor = 8		#higher = lower bitrate
 rfm9x.enable_crc = True	# enable CRC checking
 rfm9x.ack_delay = 0.1	# set delay before transmitting ACK (seconds)
-rfm9x.node = 2			# set node addresses
-rfm9x.destination = 1	# set destination addresses
+rfm9x.node = 7			# set node addresses
+rfm9x.destination = 8	# set destination addresses
 
 tnow = 0
 TxInterval = 5
