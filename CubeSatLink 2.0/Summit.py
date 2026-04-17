@@ -1,6 +1,5 @@
 # CubeSatLink Flight Transceiver Node (Summit)
 # Connect to antenna before plug any power in
-# NOTE: UART Pinout. It is flipped by adafruit design, we can't change it to be logical.
 # Author: Tri Do
 
 import time
@@ -10,21 +9,34 @@ import digitalio
 import adafruit_rfm9x
 
 # Initialize UART bus
-uart0 = busio.UART(board.TX, board.RX, baudrate=9600, bits = 8, parity = None, timeout=1)
-uart1 = busio.UART(board.D24, board.D25, baudrate=9600, bits = 8, parity = None, timeout=1)
+uart0 = busio.UART(board.GP0, board.GP1, baudrate=9600, bits = 8, parity = None, timeout=1)
+uart1 = busio.UART(board.GP4, board.GP5, baudrate=9600, bits = 8, parity = None, timeout=1)
 message_started = False
 
-uartTxInterval = 1
-transmit_interval = 5
-RFMTimeOut = 10
 
-led = digitalio.DigitalInOut(board.LED)
+
+# Define pins connected to the chip.
+# set GPIO pins as necessary -- this example is for Raspberry Pi
+CS = digitalio.DigitalInOut(board.GP17)
+RESET = digitalio.DigitalInOut(board.GP21)
+# GPIO to enable PA & LNA
+RF_TXEN = digitalio.DigitalInOut(board.GP23)
+RF_TXEN.direction = digitalio.Direction.OUTPUT
+RF_RXEN = digitalio.DigitalInOut(board.GP24)
+RF_RXEN.direction = digitalio.Direction.OUTPUT
+# Status LED
+led = digitalio.DigitalInOut(board.GP10)			# This is UART2 LED
 led.direction = digitalio.Direction.OUTPUT
 
-RADIO_FREQ_MHZ = 902.0
-CS = digitalio.DigitalInOut(board.D10)
-RESET = digitalio.DigitalInOut(board.D11)
-spi = busio.SPI(board.SCK, MOSI=board.MOSI, MISO=board.MISO)
+# Initialize SPI bus.
+spi = busio.SPI(clock=board.GP18, MOSI=board.GP19, MISO=board.GP20)
+
+
+# Define radio parameters.
+RF_RXEN = 0;
+RF_TXEN = 1;
+
+RADIO_FREQ_MHZ = 435.75
 rfm9x = adafruit_rfm9x.RFM9x(spi, CS, RESET, RADIO_FREQ_MHZ, agc = True)
 # rfm9x post-config
 rfm9x.enable_crc = True
@@ -33,8 +45,11 @@ rfm9x.spreading_factor = 8
 rfm9x.coding_rate = 8
 #rfm9x.signal_bandwidth = 7800
 rfm9x.ack_delay = 0.1		# set delay before sending ACK
-rfm9x.node = 8
-rfm9x.destination = 7
+rfm9x.node = 1
+rfm9x.destination = 2
+# Initialize RFM radio
+transmit_interval = 5		# set the time interval (seconds) for sending packets
+RFMTimeOut = 10
 
 # initialize flag and timer
 time_now = 0
@@ -64,10 +79,7 @@ def UART_Rx(uart):
     rx_string = bytearray()
     while uart.in_waiting > 0:
         char_buffer = uart.read(1)
-        if (char_buffer == '\n'):
-            break
-        else:
-            rx_string = rx_string + char_buffer
+        rx_string = rx_string + char_buffer
     string = ''.join([chr(b) for b in rx_string])
     return string
     #.decode('utf-8','replace') != '':			#not empty
@@ -77,16 +89,13 @@ cnt = 0
 def incCnt():
     global cnt
     cnt += 1
-def readCnt():
+def dspCnt():
     global cnt
     return cnt
 NoAck_cnt = 0
 def incNAK():
     global NoAck_cnt
     NoAck_cnt += 1
-def readNAK():
-    global NoAck_cnt
-    return NoAck_cnt
 
 def petRFMWatchdog():
     global rfmWatchdog
@@ -100,7 +109,7 @@ def RFM_Tx(cust,msg):
         bytes(full_msg, "UTF-8")
     ):
         incNAK()
-        print(f"Tx No Ack: {readCnt()} {readNAK()}")
+        print("Tx No Ack: ")
         
 def RFM_Rx():
     # Look for packet. Print header, payload, RSSI, SNR
@@ -111,10 +120,11 @@ def RFM_Rx():
         print("RSSI: {0}, SNR: {1}".format(rfm9x.last_rssi, rfm9x.last_snr))
         return packet[4:]
         
+uartTxInterval = 3
 uart0_receiving = ''
 uart1_receiving = ''
 while True:
-    try:
+#     try:
         Blink_Status_LED()
         
         # RFM Tx 
@@ -149,7 +159,7 @@ while True:
 
     #     #RFM Rx
     #     uplink_message = RFM_Rx()
-        uplink_message = "Summit checking in. Behind Great Ideas. Phytecssssssadhfkjdshasdh whatever lorem ipsum.\n"
+        uplink_message = "Summit checking in. Behind Great Ideas. Phytecsssss.\n"
     #     print("RFM Recieved:",uplink_message)
         
         # UART Tx
@@ -163,5 +173,5 @@ while True:
     #     print("-----END LOOP-----")
         time.sleep(0.1)
             
-    except Exception as e:
-        print(e)
+#     except Exception as e:
+#         print(e)
