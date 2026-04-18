@@ -10,22 +10,37 @@ import adafruit_rfm9x
 import sdcardio
 import storage
 
-led = digitalio.DigitalInOut(board.LED)
+
+# Declare Pinouts according to BLV-HUB-v1 Schematics
+CS_RFM = digitalio.DigitalInOut(board.GP17)
+RESET = digitalio.DigitalInOut(board.GP21)
+    # GPIO for SD Card & GNSS (SPI bus 1)
+CS_SD = board.GP11
+CS_GNSS = board.GP13
+    # GPIO to enable Ebyte's PA & LNA
+RF_RXEN = digitalio.DigitalInOut(board.GP23)
+RF_RXEN.direction = digitalio.Direction.OUTPUT
+RF_TXEN = digitalio.DigitalInOut(board.GP24)
+RF_TXEN.direction = digitalio.Direction.OUTPUT
+    # Status LED (UART2 LED)
+led = digitalio.DigitalInOut(board.GP10)
 led.direction = digitalio.Direction.OUTPUT
 
-# FIELD CONFIG PARAMETERS
-RADIO_FREQ_MHZ = 902.0
-RESET = digitalio.DigitalInOut(board.D11)
-CS_RFM = digitalio.DigitalInOut(board.D10)
-CS_SD = board.D4
-spi = busio.SPI(board.SCK, MOSI=board.MOSI, MISO=board.MISO)
-rfm9x = adafruit_rfm9x.RFM9x(spi, CS_RFM, RESET, RADIO_FREQ_MHZ, agc = True)
+# Init SPI bus
+spi_rf = busio.SPI(clock=board.GP18, MOSI=board.GP19, MISO=board.GP20)
+spi_1 = busio.SPI(clock=board.GP14, MOSI=board.GP15, MISO=board.GP12)
 
-# Radio config
+# FIELD CONFIG PARAMETERS
+RF_RXEN.value = 1;
+RF_TXEN.value = 0;
+
+RADIO_FREQ_MHZ = 435.75
+rfm9x = adafruit_rfm9x.RFM9x(spi_rf, CS_RFM, RESET, RADIO_FREQ_MHZ, agc = True)
+# Radio post-init config
 rfm9x.tx_power = 23
+rfm9x.signal_bandwidth = 125000
+rfm9x.spreading_factor = 7		#higher = lower bitrate
 rfm9x.coding_rate = 6
-#rfm9x.signal_bandwidth = 7800
-rfm9x.spreading_factor = 8		#higher = lower bitrate
 rfm9x.enable_crc = True	# enable CRC checking
 rfm9x.ack_delay = 0.1	# set delay before transmitting ACK (seconds)
 rfm9x.node = 7			# set node addresses
@@ -36,7 +51,7 @@ TxInterval = 5
 
 def SD_Init():
     try:
-        sdcard = sdcardio.SDCard(spi, CS_SD)
+        sdcard = sdcardio.SDCard(spi_1, CS_SD)
         vfs = storage.VfsFat(sdcard)
         storage.mount(vfs, "/sd")
         # Write headers for the SD Card data
