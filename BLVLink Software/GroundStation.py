@@ -51,9 +51,20 @@ TxInterval = 5
 
 def SD_Init():
     try:
-        sdcard = sdcardio.SDCard(spi_1, CS_SD)
+        print("init sd...")
+        sdcard = sdcardio.SDCard(spi_1, CS_SD, baudrate=250000)
+        print("sector count:", sd.count())
+        
         vfs = storage.VfsFat(sdcard)
+        try:
+            os.mkdir("/sd")
+        except OSError:
+            print("OS mkdir error")
+
         storage.mount(vfs, "/sd")
+        print("mounted:", os.listdir("/sd"))
+    
+    
         # Write headers for the SD Card data
         with open("/sd/Dev.csv", "a") as f:		#a for append, w for write
             f.write("\n-----------STARTED-------------\n")	#formatting in term of #. [Message]
@@ -66,8 +77,8 @@ def SD_Init():
                 f.write("Count 1,Count 2,CubeSat #, Message\n")
                 f.flush()
                 print("SD Headers wrote to File:", f"Cube{cust}Data.csv")
-    except OSError as e:
-        print("ERROR: SD CARD INIT FAILED, NO SD MOST LIKELY")
+    except Exception as e:
+        print("SD init failed:", repr(e))
         
 def SD_Write_Customer(fileName,packet):
     try:
