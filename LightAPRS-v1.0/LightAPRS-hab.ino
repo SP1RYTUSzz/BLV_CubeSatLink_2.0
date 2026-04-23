@@ -43,9 +43,9 @@ char StatusMessage[50] = "HIBAL CubeSats mission from BroncoSpace :)";
 //*****************************************************************************
 
 
-unsigned int   BeaconWait=60;  //seconds sleep for next beacon (TX).
-unsigned int   BattWait=60;    //seconds sleep if super capacitors/batteries are below BattMin (important if power source is solar panel) 
-float BattMin=4.5;        // min Volts to wake up.
+unsigned int   BeaconWait=30;  //seconds sleep for next beacon (TX).
+unsigned int   BattWait=30;    //seconds sleep if super capacitors/batteries are below BattMin (important if power source is solar panel) 
+float BattMin=3.3;        // min Volts to wake up.
 float DraHighVolt=8.0;    // min Volts for radio module (DRA818V) to transmit (TX) 1 Watt, below this transmit 0.5 Watt. You don't need 1 watt on a balloon. Do not change this.
 //float GpsMinVolt=4.0; //min Volts for GPS to wake up. (important if power source is solar panel) 
 
