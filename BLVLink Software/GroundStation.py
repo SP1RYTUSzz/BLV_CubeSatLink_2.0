@@ -10,48 +10,65 @@ import adafruit_rfm9x
 import sdcardio
 import storage
 
-# FIELD CONFIG PARAMETERS
-RADIO_FREQ_MHZ = 902.0
 
-# Declare SPI pins
-RESET = digitalio.DigitalInOut(board.D11)
-CS_RFM = digitalio.DigitalInOut(board.D10)
-CS_SD = board.D4
-# Declare on-board LED status blink
-led = digitalio.DigitalInOut(board.LED)
+# Declare Pinouts according to BLV-HUB-v1 Schematics
+CS_RFM = digitalio.DigitalInOut(board.GP17)
+RESET = digitalio.DigitalInOut(board.GP21)
+    # GPIO for SD Card & GNSS (SPI bus 1)
+CS_SD = board.GP11
+CS_GNSS = board.GP13
+    # GPIO to enable Ebyte's PA & LNA
+RF_RXEN = digitalio.DigitalInOut(board.GP23)
+RF_RXEN.direction = digitalio.Direction.OUTPUT
+RF_TXEN = digitalio.DigitalInOut(board.GP24)
+RF_TXEN.direction = digitalio.Direction.OUTPUT
+    # Status LED (UART2 LED)
+led = digitalio.DigitalInOut(board.GP10)
 led.direction = digitalio.Direction.OUTPUT
 
+# Init SPI bus
+spi_rf = busio.SPI(clock=board.GP18, MOSI=board.GP19, MISO=board.GP20)
+spi_1 = busio.SPI(clock=board.GP14, MOSI=board.GP15, MISO=board.GP12)
 
-# Initialize SPI bus 
-spi = busio.SPI(board.SCK, MOSI=board.MOSI, MISO=board.MISO)
-# Initialize SD Card Module
+# FIELD CONFIG PARAMETERS
+RF_RXEN.value = 1;
+RF_TXEN.value = 0;
 
-# Initialize RFM95
-rfm9x = adafruit_rfm9x.RFM9x(spi, CS_RFM, RESET, RADIO_FREQ_MHZ, agc = True)
-
-
-# Radio config
+RADIO_FREQ_MHZ = 435.75
+rfm9x = adafruit_rfm9x.RFM9x(spi_rf, CS_RFM, RESET, RADIO_FREQ_MHZ, agc = True)
+# Radio post-init config
 rfm9x.tx_power = 23
-rfm9x.coding_rate = 8
-#rfm9x.signal_bandwidth = 7800
-rfm9x.spreading_factor = 8		#higher = lower bitrate
+rfm9x.signal_bandwidth = 125000
+rfm9x.spreading_factor = 7		#higher = lower bitrate
+rfm9x.coding_rate = 6
 rfm9x.enable_crc = True	# enable CRC checking
 rfm9x.ack_delay = 0.1	# set delay before transmitting ACK (seconds)
-rfm9x.node = 2			# set node addresses
-rfm9x.destination = 1	# set destination addresses
+rfm9x.node = 7			# set node addresses
+rfm9x.destination = 8	# set destination addresses
 
 tnow = 0
 TxInterval = 5
 
 def SD_Init():
     try:
-        sdcard = sdcardio.SDCard(spi, CS_SD)
+        print("init sd...")
+        sdcard = sdcardio.SDCard(spi_1, CS_SD, baudrate=250000)
+        print("sector count:", sd.count())
+        
         vfs = storage.VfsFat(sdcard)
+        try:
+            os.mkdir("/sd")
+        except OSError:
+            print("OS mkdir error")
+
         storage.mount(vfs, "/sd")
+        print("mounted:", os.listdir("/sd"))
+    
+    
         # Write headers for the SD Card data
         with open("/sd/Dev.csv", "a") as f:		#a for append, w for write
             f.write("\n-----------STARTED-------------\n")	#formatting in term of #. [Message]
-            f.write("{GroundStation cnt,Summit cnt,CubeSat #,RSSI,SNR, Message\n")
+            f.write("time (ms),GroundStation cnt,Summit cnt,CubeSat #,RSSI,SNR, Message\n")
             f.flush()
             print("SD Headers wrote to Dev.csv")
         for cust in range(3):
@@ -60,8 +77,8 @@ def SD_Init():
                 f.write("Count 1,Count 2,CubeSat #, Message\n")
                 f.flush()
                 print("SD Headers wrote to File:", f"Cube{cust}Data.csv")
-    except OSError as e:
-        print("ERROR: SD CARD INIT FAILED, NO SD MOST LIKELY")
+    except Exception as e:
+        print("SD init failed:", repr(e))
         
 def SD_Write_Customer(fileName,packet):
     try:
@@ -83,7 +100,8 @@ def SD_Write_Dev(packet):
     try:
         with open("/sd/Dev.csv", "a") as f:		#a for append, w for write
             f.write(
-                "{}, {}, {}, {}, {}, Msg:, {}\n".format(
+                "{}, {}, {}, {}, {}, {}, Msg:, {}\n".format(
+                    round(time.monotonic(),3),
                     hex(counter),
                     hex(packet[2]),
                     hex(packet[4]),
@@ -147,9 +165,9 @@ SD_Init()
 print("Waiting for packets...")
 while True:
     Blink_Status_LED()
-    if (time.monotonic() - tnow > TxInterval):
-        tnow = time.monotonic()
-        Tx_message = "GroundBLV checking {}".format(rfm9x.node, counter)
-        RFM_Tx(Tx_message)
+#     if (time.monotonic() - tnow > TxInterval):
+#         tnow = time.monotonic()
+#         Tx_message = "GroundBLV checking {}".format(rfm9x.node, counter)
+#         RFM_Tx(Tx_message)
     RFM_Rx()
     time.sleep(0.1)

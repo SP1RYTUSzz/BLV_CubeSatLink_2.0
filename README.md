@@ -1,16 +1,16 @@
 # BLV-Uplink-Downlink
 
 ## Overview
-CubeSatLink is a software and hardware project to establish a reliable communication link between a ground station and several student-built CubeSats (small satellites) attached to a flying weather balloon mission. The project aims to provide a robust and efficient communication system for CubeSat missions with minimal effort on the student's side, enabling quick prototyping of the yearlong Balloon Launch Assessment Directive for Everyone (BLADE) launched in Summer-Fall.
+CubeSatLink is a software and hardware project to establish a reliable communication link between a ground station and several student-built CubeSats (small satellites) attached to a flying weather balloon mission. The project aims to provide a robust and efficient communication system for CubeSat missions with minimal effort on the student's side, enabling quick prototyping of the yearly BLADE CubeSats (Balloon Launch Assessment Directive for Everyone).
 
 ## Features
 **Reliable Data Transfer**: CubeSatLink ensures reliable data transfer between the CubeSat and the ground station, even in errors or packet loss.
 
 **Flexible Configuration**: The project allows for flexible configuration of communication parameters, such as data rates, packet sizes, data bits, stop bits, and parity controls.
 
-**Ground Station Software**: The project includes a comprehensive ground station software suite for monitoring received packets, and sending instructions to CubeSats through console terminal.
+**Ground Station Software**: The project includes a comprehensive ground station software suite for monitoring received packets, data recording, and sending instructions to CubeSats through console terminal.
 
-**SDCard Memory Support**: The ground station supports data storage on an SDCard for permanent storage of sent and received data in case of ground station malfunction.
+**SDCard Memory Support**: The ground station supports data storage on an SDCard for permanent storage of sent and received data in case of unrecoverable launch vehicles.
 
 ## Technical Details
 **Programming Languages**: The project is written in C++ and Python.
