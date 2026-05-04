@@ -1,6 +1,6 @@
 # BLV Onboard Cutaway Mechanism Code
 # Originally written by Michael Pham and Ali Malik
-# Edited by Pragun Bethapudi, Vencionas Kosasih and Tri Do
+# Edited by Pragun Bethapudi, Vencionas Kosasih, and Tri Do
 # Most recent editor: Tri Do
 
 # import necessary libraries
@@ -33,7 +33,7 @@ reset = digitalio.DigitalInOut(board.D11)
 rfm9x = adafruit_rfm9x.RFM9x(spi, cs, reset, 437.4)
 
 rfm9x.spreading_factor=8
-rfm9x.tx_power=14
+rfm9x.tx_power=23
 rfm9x.node=0xfb
 rfm9x.destination=0xfa
 rfm9x.receive_timeout=10
@@ -239,7 +239,7 @@ while True:
     rfm9x.send(gps_handler(gps_alt, gps_speed, gps_track_angle))
     msg = rfm9x.receive()
 
-    print(f"Message received: {msg} ; RSSI: {rfm9x.last_rssi}")
+    print(f"Message received: {msg} ; RSSI: {rfm9x.last_rssi} ; SNR {rfm9x.snr}")
 
     if msg is not None:
         cmd_handler(msg)
