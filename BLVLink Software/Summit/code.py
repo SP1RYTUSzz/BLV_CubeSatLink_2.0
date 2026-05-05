@@ -126,7 +126,7 @@ uartTxInterval = 3
 uart0_receiving = ''
 uart1_receiving = ''
 while True:
-#     try:
+     try:
         Blink_Status_LED()
         
         # RFM Tx 
@@ -175,5 +175,5 @@ while True:
     #     print("-----END LOOP-----")
         time.sleep(0.1)
             
-#     except Exception as e:
-#         print(e)
+     except Exception as e:
+         print(e)
