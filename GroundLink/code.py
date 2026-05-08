@@ -155,7 +155,9 @@ def RFM_Rx():
     if packet is not None:
         if packet[1] == 0x8:
             print("BLVLink RX (raw header):", [hex(x) for x in packet[0:4]])
-            print("BLVLink RX (raw payload): {0}".format(packet[4:]))
+            # print("BLVLink RX (raw payload): {0}".format(packet[4:]))
+            packet_text_blvlink = str(packet, "ascii")
+            print("CUTAWAY RX (ASCII): {0}".format(packet_text_blvlink))
             print("BLVLink RSSI: {0}, SNR: {1}".format(rfm9x.last_rssi, rfm9x.last_snr))
             SD_Write_Dev(packet)
             if packet[4] == 0x41:
@@ -235,7 +237,7 @@ while True:
     if packet_cutaway is not None:
         if packet_cutaway[1] != 0x8 and packet_cutaway[1] != 0x2c: #These addresses are blv link
             print("CUTAWAY RX (raw header):", [hex(x) for x in packet_cutaway[0:4]])
-            print("CUTAWAY RX (raw bytes): {0}".format(packet_cutaway))
+            # print("CUTAWAY RX (raw bytes): {0}".format(packet_cutaway))
             packet_text = str(packet_cutaway, "ascii")
             print("CUTAWAY RX (ASCII): {0}".format(packet_text))
             rssi = rfm9x.last_rssi
