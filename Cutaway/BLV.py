@@ -236,10 +236,15 @@ def coord_status(): #5
         rfm9x.send("GPS does not have a fix! Please try again.")
 
 
+
+
 # ====================================================================================================
+# zeros variables
+
+last_signal_status_time = time.monotonic()
+
 
 # this is the actual looping code (must define all functions beforehand)
-
 while True:
     msg = rfm9x.receive()
 
@@ -247,10 +252,15 @@ while True:
 
     if msg is not None:
         cmd_handler(msg)
-        # cutaway manual activation OR signal status OR gps status
+        
+    if time.monotonic() - last_signal_status_time > 10:
+        signal_status()
+        last_signal_status_time = time.monotonic()
+    
+    
+    
 #     if gps_alt == 31500:
 #         cut_away()
         # cutaway automatic activation
 
     time.sleep(1)
-
