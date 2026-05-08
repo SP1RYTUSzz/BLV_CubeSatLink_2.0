@@ -153,22 +153,23 @@ def RFM_Rx():
     RF_TXEN.value = 0;
     packet = rfm9x.receive(with_ack=True, with_header=True)
     if packet is not None:
-        print("BLVLink RX (raw header):", [hex(x) for x in packet[0:4]])
-        print("BLVLink RX (raw payload): {0}".format(packet[4:]))
-        print("BLVLink RSSI: {0}, SNR: {1}".format(rfm9x.last_rssi, rfm9x.last_snr))
-        SD_Write_Dev(packet)
-        if packet[4] == 0x41:
-            SD_Write_Customer("/sd/Cube0Data.csv",packet)
-        elif packet[4] == 0x42:
-            SD_Write_Customer("/sd/Cube1Data.csv",packet)
-        elif packet[4] == 0x43:
-            SD_Write_Customer("/sd/Cube2Data.csv",packet)
-        elif packet[4] == 0x53:
+        if packet[1] == 0x8:
+            print("BLVLink RX (raw header):", [hex(x) for x in packet[0:4]])
+            print("BLVLink RX (raw payload): {0}".format(packet[4:]))
+            print("BLVLink RSSI: {0}, SNR: {1}".format(rfm9x.last_rssi, rfm9x.last_snr))
             SD_Write_Dev(packet)
-            print("Double written to Dev.csv")
-        else:
-            print("SD Write Destination Error. Missing Destination Header packet[4]! Check flight transceiver")
-        incCnt()
+            if packet[4] == 0x41:
+                SD_Write_Customer("/sd/Cube0Data.csv",packet)
+            elif packet[4] == 0x42:
+                SD_Write_Customer("/sd/Cube1Data.csv",packet)
+            elif packet[4] == 0x43:
+                SD_Write_Customer("/sd/Cube2Data.csv",packet)
+            elif packet[4] == 0x53:
+                SD_Write_Dev(packet)
+                print("Double written to Dev.csv")
+            else:
+                print("SD Write Destination Error. Missing Destination Header packet[4]! Check flight transceiver")
+            incCnt()
     
 def Blink_Status_LED():
     # Status LED blink every loop
@@ -202,7 +203,7 @@ while True:
         char = sys.stdin.read(1)
         
         # Check for Enter
-        if char == "\n" or char == "\r":
+        if char == "\n":
             print(f"\nYou entered: {input_buffer}")
             send_that_shit = input_buffer
             input_buffer = ""  # Clear buffer for next input
@@ -232,13 +233,15 @@ while True:
     packet_cutaway = rfm9x.receive()
 
     if packet_cutaway is not None:
-        print("CUTAWAY RX (raw bytes): {0}".format(packet_cutaway))
-        packet_text = str(packet_cutaway, "ascii")
-        print("CUTAWAY RX (ASCII): {0}".format(packet_text))
-        rssi = rfm9x.last_rssi
-        snr = rfm9x.last_snr
-        print("CUTAWAY RSSI: {0} dB, SNR: {1} dB".format(rssi,snr))
-        time.sleep(0.01)
+        if packet_cutaway[1] != 0x8 and packet_cutaway[1] != 0x2c: #These addresses are blv link
+            print("CUTAWAY RX (raw header):", [hex(x) for x in packet_cutaway[0:4]])
+            print("CUTAWAY RX (raw bytes): {0}".format(packet_cutaway))
+            packet_text = str(packet_cutaway, "ascii")
+            print("CUTAWAY RX (ASCII): {0}".format(packet_text))
+            rssi = rfm9x.last_rssi
+            snr = rfm9x.last_snr
+            print("CUTAWAY RSSI: {0} dB, SNR: {1} dB".format(rssi,snr))
+            time.sleep(0.01)
         
     rfm9x.destination = 8
     rfm9x.enable_crc = True	# enable CRC checking
