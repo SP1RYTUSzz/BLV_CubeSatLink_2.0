@@ -30,12 +30,13 @@ gps_track_angle = 0
 spi = busio.SPI(board.SCK, MOSI=board.MOSI, MISO=board.MISO)
 cs = digitalio.DigitalInOut(board.D10)
 reset = digitalio.DigitalInOut(board.D11)
-rfm9x = adafruit_rfm9x.RFM9x(spi, cs, reset, 437.4)
+rfm9x = adafruit_rfm9x.RFM9x(spi, cs, reset, 435.75)
 
-rfm9x.spreading_factor=8
+rfm9x.spreading_factor=7
+rfm9x.coding_rate=6
 rfm9x.tx_power=23
 rfm9x.node=0xfb
-rfm9x.destination=0xfa
+rfm9x.destination=0x7
 rfm9x.receive_timeout=10
 rfm9x.enable_crc=True
 rfm9x.signal_bandwidth = 125000
@@ -209,11 +210,15 @@ def exec_cmd(args):
     print(f'exec: {args}')
     exec(args)
 
-def signal_status():
+def signal_status(): #1
     print("Sending signal status and confirmation!")
-    rfm9x.send("Packet received! Relaying RSSI.")
+    if gps.has_fix:
+        rfm9x.send(gps_handler(gps_alt, gps_speed, gps_track_angle))
+    else:
+        rfm9x.send("GPS does not have a fix! Please try again.")
 
-def alt_status():
+
+def alt_status(): #3
     print("Sending current altitude!")
     if gps.has_fix:
         if gps.altitude_m is not None:
@@ -223,7 +228,7 @@ def alt_status():
     else:
         rfm9x.send("GPS does not have a fix! Please try again.")
 
-def coord_status():
+def coord_status(): #5
     print("Sending coordinates!")
     if gps.has_fix:
         rfm9x.send("""Latitude: {} degrees, Longitude: {} degrees""".format(round(gps.latitude, 6), round(gps.longitude,6)))
@@ -236,7 +241,6 @@ def coord_status():
 # this is the actual looping code (must define all functions beforehand)
 
 while True:
-    rfm9x.send(gps_handler(gps_alt, gps_speed, gps_track_angle))
     msg = rfm9x.receive()
 
     print(f"Message received: {msg} ; RSSI: {rfm9x.last_rssi} ; SNR {rfm9x.snr}")
@@ -249,3 +253,4 @@ while True:
         # cutaway automatic activation
 
     time.sleep(1)
+
