@@ -253,7 +253,7 @@ while True:
     if msg is not None:
         cmd_handler(msg)
         
-    if time.monotonic() - last_signal_status_time > 10:
+    if time.monotonic() - last_signal_status_time > 5:
         signal_status()
         last_signal_status_time = time.monotonic()
     
