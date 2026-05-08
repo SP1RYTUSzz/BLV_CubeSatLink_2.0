@@ -10,6 +10,8 @@ import adafruit_rfm9x
 import sdcardio
 import storage
 import os
+import sys
+import supervisor
 
 # Declare Pinouts according to BLV-HUB-v1 Schematics
 CS_RFM = digitalio.DigitalInOut(board.GP17)
@@ -31,7 +33,7 @@ spi_rf = busio.SPI(clock=board.GP18, MOSI=board.GP19, MISO=board.GP20)
 spi_1 = busio.SPI(clock=board.GP14, MOSI=board.GP15, MISO=board.GP12)
 
 # FIELD CONFIG PARAMETERS
-RF_RXEN.value = 1;
+RF_RXEN.value = 0;
 RF_TXEN.value = 0;
 
 RADIO_FREQ_MHZ = 435.75
@@ -48,6 +50,19 @@ rfm9x.destination = 8	# set destination addresses
 
 tnow = 0
 TxInterval = 5
+
+signal_status_message = "KN6NAQ!CMD69"
+# Corresponds with BLV code that sends us back the RSSI, or signal status
+
+alt_status_message = "KN6NAQ!CMD70"
+# Corresponds with BLV code that sends us back the altitude info
+
+coord_status_message = "KN6NAQ!CMD71"
+# Corresponds with BLV code that sends us back the coordinate info
+# aka latitude and longitude
+
+cut_away_message = "KN6NAQ!CMD65"
+#cut_away_message = "HELLOW0RLD23"
 
 def SD_Init():
     try:
@@ -123,6 +138,8 @@ def incNAK():
     ack_failed_counter += 1
 
 def RFM_Tx(msg):
+    RF_RXEN.value = 0;
+    RF_TXEN.value = 1;
     print("Airing Uplink")
     if not rfm9x.send_with_ack(
         bytes(msg, "UTF-8")
@@ -132,11 +149,13 @@ def RFM_Tx(msg):
         print("Tx No Ack: ", counter, ack_failed_counter)
             
 def RFM_Rx():
+    RF_RXEN.value = 1;
+    RF_TXEN.value = 0;
     packet = rfm9x.receive(with_ack=True, with_header=True)
     if packet is not None:
-        print("Received (raw header):", [hex(x) for x in packet[0:4]])
-        print("Received (raw payload): {0}".format(packet[4:]))
-        print("RSSI: {0}, SNR: {1}".format(rfm9x.last_rssi, rfm9x.last_snr))
+        print("BLVLink RX (raw header):", [hex(x) for x in packet[0:4]])
+        print("BLVLink RX (raw payload): {0}".format(packet[4:]))
+        print("BLVLink RSSI: {0}, SNR: {1}".format(rfm9x.last_rssi, rfm9x.last_snr))
         SD_Write_Dev(packet)
         if packet[4] == 0x41:
             SD_Write_Customer("/sd/Cube0Data.csv",packet)
@@ -150,22 +169,80 @@ def RFM_Rx():
         else:
             print("SD Write Destination Error. Missing Destination Header packet[4]! Check flight transceiver")
         incCnt()
-        
     
 def Blink_Status_LED():
     # Status LED blink every loop
     led.value = not led.value
     tnow=time.monotonic()
+    
+def send_message(msg):
+    RF_RXEN.value = 0;
+    RF_TXEN.value = 1;
+    rfm9x.destination=0xfb
+    rfm9x.send(msg)
+    print(f"Sending message: {msg}")
+    time.sleep(0.01) # slight delay for user experience lol
 
 ##### maybe implement more robust LED?
 # START ROUTINE
 SD_Init()
 print("Waiting for packets...")
+
+input_buffer = ""
+send_that_shit = "bet" # defines a new variable to activate cutaway
+
 while True:
+    RF_RXEN.value = 0;
+    RF_TXEN.value = 0;
     Blink_Status_LED()
-#     if (time.monotonic() - tnow > TxInterval):
-#         tnow = time.monotonic()
-#         Tx_message = "GroundBLV checking {}".format(rfm9x.node, counter)
-#         RFM_Tx(Tx_message)
+    
+    packet_cutaway = None
+    if supervisor.runtime.serial_bytes_available:
+        # Read what is available
+        char = sys.stdin.read(1)
+        
+        # Check for Enter
+        if char == "\n" or char == "\r":
+            print(f"\nYou entered: {input_buffer}")
+            send_that_shit = input_buffer
+            input_buffer = ""  # Clear buffer for next input
+        else:
+            input_buffer += char
+            sys.stdout.write(char) # Optional: echo character back to user
+    
+    
+    if send_that_shit == "1":
+        send_message(signal_status_message)
+ 
+    elif send_that_shit == "3":
+        send_message(alt_status_message)
+
+    elif send_that_shit == "5":
+        send_message(coord_status_message)
+
+    elif send_that_shit == "9":
+        send_message(cut_away_message)
+    
+    send_that_shit = "bet"
+
+
+    rfm9x.destination=0xfb
+    RF_RXEN.value = 1;
+    RF_TXEN.value = 0;
+    packet_cutaway = rfm9x.receive()
+
+    if packet_cutaway is not None:
+        print("CUTAWAY RX (raw bytes): {0}".format(packet_cutaway))
+        packet_text = str(packet_cutaway, "ascii")
+        print("CUTAWAY RX (ASCII): {0}".format(packet_text))
+        rssi = rfm9x.last_rssi
+        snr = rfm9x.last_snr
+        print("CUTAWAY RSSI: {0} dB, SNR: {1} dB".format(rssi,snr))
+        time.sleep(0.01)
+        
+    rfm9x.destination = 8
+    rfm9x.enable_crc = True	# enable CRC checking
     RFM_Rx()
-    time.sleep(0.1)
+    
+
+    time.sleep(0.01)
