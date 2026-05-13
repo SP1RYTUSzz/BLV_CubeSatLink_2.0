@@ -10,26 +10,19 @@ import digitalio
 UBX_SYNC_1 = 0xB5
 UBX_SYNC_2 = 0x62
 
-# UBX message classes / IDs
+# UBX-NAV-PVT
 UBX_CLASS_NAV = 0x01
 UBX_ID_NAV_PVT = 0x07
 
-UBX_CLASS_ACK = 0x05
-UBX_ID_ACK_NAK = 0x00
-UBX_ID_ACK_ACK = 0x01
-
+# UBX-CFG-VALSET
 UBX_CLASS_CFG = 0x06
 UBX_ID_CFG_VALSET = 0x8A
 
-# u-blox M9 dynamic platform model config key
+# Configuration key for dynamic platform model on u-blox M9
 CFG_NAVSPG_DYNMODEL = 0x20110021
 
 # Dynamic model values
 DYNMODEL_PORTABLE = 0
-DYNMODEL_STATIONARY = 2
-DYNMODEL_PEDESTRIAN = 3
-DYNMODEL_AUTOMOTIVE = 4
-DYNMODEL_SEA = 5
 DYNMODEL_AIRBORNE_1G = 6
 DYNMODEL_AIRBORNE_2G = 7
 DYNMODEL_AIRBORNE_4G = 8
@@ -38,14 +31,6 @@ DYNMODEL_AIRBORNE_4G = 8
 def dynamic_model_name(model):
     if model == DYNMODEL_PORTABLE:
         return "Portable"
-    if model == DYNMODEL_STATIONARY:
-        return "Stationary"
-    if model == DYNMODEL_PEDESTRIAN:
-        return "Pedestrian"
-    if model == DYNMODEL_AUTOMOTIVE:
-        return "Automotive"
-    if model == DYNMODEL_SEA:
-        return "Sea"
     if model == DYNMODEL_AIRBORNE_1G:
         return "Airborne <1g"
     if model == DYNMODEL_AIRBORNE_2G:
@@ -57,19 +42,10 @@ def dynamic_model_name(model):
 
 class NeoM9nSPI:
     """
-    Simple u-blox NEO-M9N SPI driver for CircuitPython.
+    Simple NEO-M9N SPI driver for CircuitPython.
 
-    Important SPI idea:
-        SPI is controlled by the Pico.
-        The GPS cannot send data whenever it wants.
-        The Pico must send dummy bytes to create clock pulses.
-
-    This driver:
-        - sends UBX commands
-        - reads raw SPI bytes
-        - finds complete UBX packets
-        - parses UBX-NAV-PVT
-        - sets the dynamic platform model
+    SPI is master-controlled. That means the Pico must send dummy
+    bytes to create clock pulses before the GPS can return data.
     """
 
     def __init__(self, spi, cs_pin, baudrate=1_000_000):
@@ -80,8 +56,7 @@ class NeoM9nSPI:
         self.cs.direction = digitalio.Direction.OUTPUT
         self.cs.value = True
 
-        # Buffer for raw bytes read from SPI.
-        # UBX packets can be split across reads, so we keep leftovers here.
+        # Keeps partial UBX packets between reads.
         self.buffer = b""
 
         self.current_dynmodel = None
@@ -90,12 +65,7 @@ class NeoM9nSPI:
 
     def configure_spi(self):
         """
-        Configure SPI mode.
-
-        u-blox SPI normally uses:
-            polarity = 0
-            phase    = 0
-            mode     = 0
+        Configure SPI mode 0.
         """
 
         while not self.spi.try_lock():
@@ -113,10 +83,10 @@ class NeoM9nSPI:
 
     def transfer(self, tx):
         """
-        Full-duplex SPI transfer.
+        Send bytes and receive bytes at the same time.
 
-        SPI sends and receives at the same time.
-        If tx is 100 bytes long, rx will also be 100 bytes long.
+        SPI is full-duplex:
+            every transmitted byte also receives one byte.
         """
 
         rx = bytearray(len(tx))
@@ -133,16 +103,16 @@ class NeoM9nSPI:
 
         return bytes(rx)
 
-    def read_raw(self, count=512):
+    def read_raw(self, count=768):
         """
         Read raw bytes from the GPS.
 
-        To read over SPI, we send dummy 0xFF bytes.
+        To read using SPI, we send dummy 0xFF bytes.
         The GPS sends data back during those clock pulses.
 
-        Do NOT delete all 0xFF bytes here.
-        0xFF can appear inside a real UBX packet.
-        The packet parser will discard junk safely.
+        Important:
+            Do not remove all 0xFF bytes here.
+            0xFF can appear inside a valid UBX packet.
         """
 
         dummy = bytearray([0xFF] * count)
@@ -152,11 +122,10 @@ class NeoM9nSPI:
         """
         Calculate UBX checksum.
 
-        Checksum is over:
+        Checksum is calculated over:
             class, id, length, payload
 
-        Checksum does not include:
-            0xB5 0x62
+        It does not include the 0xB5 0x62 sync bytes.
         """
 
         ck_a = 0
@@ -170,7 +139,7 @@ class NeoM9nSPI:
 
     def make_ubx_packet(self, msg_class, msg_id, payload=b""):
         """
-        Build one complete UBX packet.
+        Build a complete UBX packet.
         """
 
         length = len(payload)
@@ -192,7 +161,7 @@ class NeoM9nSPI:
 
     def send_ubx(self, msg_class, msg_id, payload=b""):
         """
-        Send one UBX packet to the GPS.
+        Send a UBX command packet to the GPS.
         """
 
         packet = self.make_ubx_packet(msg_class, msg_id, payload)
@@ -200,31 +169,28 @@ class NeoM9nSPI:
 
     def poll_nav_pvt(self):
         """
-        Ask the GPS for one UBX-NAV-PVT packet.
+        Request one UBX-NAV-PVT message.
 
-        NAV-PVT includes:
+        NAV-PVT contains:
+            time
             fix type
             valid fix flag
             latitude
             longitude
             altitude
+            satellite count
             speed
             heading
-            satellite count
         """
 
         self.send_ubx(UBX_CLASS_NAV, UBX_ID_NAV_PVT)
 
     def parse_ubx_from_buffer(self):
         """
-        Search self.buffer for complete UBX packets.
+        Search the byte buffer for complete UBX packets.
 
         Returns:
             list of (msg_class, msg_id, payload)
-
-        Why this is needed:
-            One SPI read might contain half a packet.
-            The next SPI read might contain the rest.
         """
 
         packets = []
@@ -234,18 +200,19 @@ class NeoM9nSPI:
             start = self.buffer.find(sync)
 
             if start < 0:
-                # Keep a trailing 0xB5 in case the next read starts with 0x62.
+                # Keep a trailing 0xB5 in case next read starts with 0x62.
                 if len(self.buffer) > 0 and self.buffer[-1] == UBX_SYNC_1:
                     self.buffer = self.buffer[-1:]
                 else:
                     self.buffer = b""
                 return packets
 
-            # Discard junk before sync bytes.
+            # Remove junk before the sync bytes.
             if start > 0:
                 self.buffer = self.buffer[start:]
 
-            # Need at least header + checksum.
+            # Minimum UBX packet:
+            # 2 sync + 1 class + 1 id + 2 length + 2 checksum = 8 bytes
             if len(self.buffer) < 8:
                 return packets
 
@@ -255,7 +222,7 @@ class NeoM9nSPI:
 
             total_length = 6 + length + 2
 
-            # Wait for more bytes if packet is incomplete.
+            # Packet is incomplete; wait for more bytes.
             if len(self.buffer) < total_length:
                 return packets
 
@@ -267,18 +234,18 @@ class NeoM9nSPI:
             if ck_a == packet[-2] and ck_b == packet[-1]:
                 packets.append((msg_class, msg_id, payload))
 
-            # Remove parsed packet from buffer.
+            # Remove this packet and continue searching.
             self.buffer = self.buffer[total_length:]
 
-    def read_packets(self, read_size=512):
+    def read_packets(self, read_size=768):
         """
-        Read from SPI and return any complete UBX packets found.
+        Read SPI bytes and return complete UBX packets.
         """
 
         raw = self.read_raw(read_size)
         self.buffer += raw
 
-        # Prevent unlimited growth if wiring/config is wrong.
+        # Prevent runaway memory growth if wiring or config is wrong.
         if len(self.buffer) > 4096:
             self.buffer = self.buffer[-512:]
 
@@ -288,7 +255,7 @@ class NeoM9nSPI:
         """
         Decode UBX-NAV-PVT.
 
-        Payload length is normally 92 bytes.
+        Payload is normally 92 bytes.
         """
 
         if len(payload) < 92:
@@ -302,6 +269,7 @@ class NeoM9nSPI:
         second = payload[10]
 
         fix_type = payload[20]
+
         flags = payload[21]
         gnss_fix_ok = bool(flags & 0x01)
 
@@ -310,8 +278,8 @@ class NeoM9nSPI:
         longitude = struct.unpack_from("<i", payload, 24)[0] / 10_000_000
         latitude = struct.unpack_from("<i", payload, 28)[0] / 10_000_000
 
-        # height = above ellipsoid
-        # height_msl = above mean sea level
+        # height_m is above ellipsoid.
+        # height_msl_m is above mean sea level.
         height_m = struct.unpack_from("<i", payload, 32)[0] / 1000
         height_msl_m = struct.unpack_from("<i", payload, 36)[0] / 1000
 
@@ -353,41 +321,29 @@ class NeoM9nSPI:
             return "time-only fix"
         return "unknown"
 
-    def set_dynamic_model(self, model, save_to_ram=True, save_to_bbr=False, save_to_flash=False):
+    def set_dynamic_model(self, model):
         """
-        Set dynamic platform model using UBX-CFG-VALSET.
+        Set the dynamic platform model using UBX-CFG-VALSET.
 
-        Recommended for flight code:
-            save_to_ram=True
-            save_to_bbr=False
-            save_to_flash=False
+        This writes to RAM only.
+        That means the setting is applied now, but not permanently saved.
 
-        That means the config is applied now, but not permanently burned.
+        For a high-altitude balloon, use:
+            DYNMODEL_AIRBORNE_1G
         """
-
-        layers = 0
-
-        if save_to_ram:
-            layers |= 0x01
-
-        if save_to_bbr:
-            layers |= 0x02
-
-        if save_to_flash:
-            layers |= 0x04
 
         payload = bytearray()
 
-        # VALSET header
-        payload.append(0x00)      # version
-        payload.append(layers)    # layers
-        payload.append(0x00)      # reserved
-        payload.append(0x00)      # reserved
+        # UBX-CFG-VALSET header
+        payload.append(0x00)  # version
+        payload.append(0x01)  # layer: RAM only
+        payload.append(0x00)  # reserved
+        payload.append(0x00)  # reserved
 
-        # Key ID: CFG-NAVSPG-DYNMODEL, little-endian
+        # Key ID, little-endian
         payload.extend(struct.pack("<I", CFG_NAVSPG_DYNMODEL))
 
-        # Value: one-byte enum
+        # Value, one byte
         payload.append(model)
 
         self.send_ubx(UBX_CLASS_CFG, UBX_ID_CFG_VALSET, payload)
@@ -396,7 +352,7 @@ class NeoM9nSPI:
 
     def set_dynamic_model_if_changed(self, model):
         """
-        Avoid repeatedly sending the same config command.
+        Set dynamic model only if it changed.
         """
 
         if self.current_dynmodel != model:
