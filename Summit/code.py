@@ -12,33 +12,32 @@ import adafruit_rfm9x
 uart0 = busio.UART(board.GP0, board.GP1, baudrate=9600, bits = 8, parity = None, timeout=1)
 uart1 = busio.UART(board.GP4, board.GP5, baudrate=9600, bits = 8, parity = None, timeout=1)
 message_started = False
-
-
-
-# Define pins connected to the chip.
-# set GPIO pins as necessary -- this example is for Raspberry Pi
-CS = digitalio.DigitalInOut(board.GP17)
-RESET = digitalio.DigitalInOut(board.GP21)
-# GPIO to enable PA & LNA
-RF_RXEN = digitalio.DigitalInOut(board.GP23)
-RF_RXEN.direction = digitalio.Direction.OUTPUT
-RF_TXEN = digitalio.DigitalInOut(board.GP24)
-RF_TXEN.direction = digitalio.Direction.OUTPUT
 # Status LED
 led = digitalio.DigitalInOut(board.GP10)			# This is UART2 LED
 led.direction = digitalio.Direction.OUTPUT
 
-# Initialize SPI bus.
-spi = busio.SPI(clock=board.GP18, MOSI=board.GP19, MISO=board.GP20)
 
-
-# Define radio parameters.
+# INITIALIZE RF SECTIONS
+    # GPIO for RF
+CS_RF = digitalio.DigitalInOut(board.GP17)
+RESET = digitalio.DigitalInOut(board.GP21)
+    # GPIO for enable PA & LNA
+RF_RXEN = digitalio.DigitalInOut(board.GP23)
+RF_RXEN.direction = digitalio.Direction.OUTPUT
+RF_TXEN = digitalio.DigitalInOut(board.GP24)
+RF_TXEN.direction = digitalio.Direction.OUTPUT
+    # Initialize RF SPI0 bus.
+SPI0_CLK = board.GP18
+SPI0_MOSI = board.GP19
+SPI0_MISO = board.GP20
+spi0 = busio.SPI(clock=SPI0_CLK, MOSI=SPI0_MOSI, MISO=SPI0_MISO)
+    # Define radio parameters.
 RF_RXEN.value = 0;
 RF_TXEN.value = 0;
-
+    # Init RFM9x
 RADIO_FREQ_MHZ = 435.75
-rfm9x = adafruit_rfm9x.RFM9x(spi, CS, RESET, RADIO_FREQ_MHZ, agc = True)
-# rfm9x post-config
+rfm9x = adafruit_rfm9x.RFM9x(spi0, CS_RF, RESET, RADIO_FREQ_MHZ, agc = True)
+    # rfm9x post-config
 rfm9x.enable_crc = True
 rfm9x.tx_power = 23
 rfm9x.spreading_factor = 7
@@ -47,21 +46,33 @@ rfm9x.signal_bandwidth = 125000
 rfm9x.ack_delay = 0.1		# set delay before sending ACK
 rfm9x.node = 8
 rfm9x.destination = 7
-# Initialize RFM radio
+    # Initialize RFM radio
 transmit_interval = 5		# set the time interval (seconds) for sending packets
 RFMTimeOut = 10
 
-# initialize flag and timer
+# INITIALIZE MicroSD AND GNSS SECTIONS
+    # GPIO for SD Card & GNSS (SPI bus 1)
+CS_SD = board.GP11
+CS_GNSS = board.GP13
+SPI1_CLK = board.GP14
+SPI1_MOSI = board.GP15
+SPI1_MISO = board.GP12
+spi1 = busio.SPI(clock=SPI1_CLK, MOSI=SPI1_MOSI, MISO=SPI1_MISO)
+
+
+# INITIALIZE flag and timer
 time_now = 0
 tnow = 0
 uart_now = 0
 rfmWatchdog = 0
-uart0_receiving = ""
+cnt = 0
+NoAck_cnt = 0
+uartTxInterval = 3
+uart0_receiving = ''
+uart1_receiving = ''
 
-# send startup message from my_node
-rfm9x.send_with_ack(bytes("startup message from node {}".format(rfm9x.node), "UTF-8"))
-print("Waiting for packets...")
 
+# START FUNCTION DEF
 def Blink_Status_LED():
     # Status LED blink every loop
     led.value = not led.value
@@ -85,14 +96,14 @@ def UART_Rx(uart):
     #.decode('utf-8','replace') != '':			#not empty
     #    return rx_string.decode('utf-8','ignore')
      
-cnt = 0
+
 def incCnt():
     global cnt
     cnt += 1
 def dspCnt():
     global cnt
     return cnt
-NoAck_cnt = 0
+
 def incNAK():
     global NoAck_cnt
     NoAck_cnt += 1
@@ -121,10 +132,19 @@ def RFM_Rx():
         print("Received (raw payload): {0}".format(packet[4:]))
         print("RSSI: {0}, SNR: {1}".format(rfm9x.last_rssi, rfm9x.last_snr))
         return packet[4:]
-        
-uartTxInterval = 3
-uart0_receiving = ''
-uart1_receiving = ''
+
+# DEF FOR GNSS
+def GNSS():
+    pass
+
+def SD():
+    pass
+
+
+# START CODE
+    # send startup message from my_node
+rfm9x.send_with_ack(bytes("startup message from node {}".format(rfm9x.node), "UTF-8"))
+print("Waiting for packets...")
 while True:
      try:
         Blink_Status_LED()
@@ -177,3 +197,4 @@ while True:
             
      except Exception as e:
          print(e)
+

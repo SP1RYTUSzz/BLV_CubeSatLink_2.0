@@ -30,7 +30,7 @@ led.direction = digitalio.Direction.OUTPUT
 
 # Init SPI bus
 spi_rf = busio.SPI(clock=board.GP18, MOSI=board.GP19, MISO=board.GP20)
-spi_1 = busio.SPI(clock=board.GP14, MOSI=board.GP15, MISO=board.GP12)
+spi1 = busio.SPI(clock=board.GP14, MOSI=board.GP15, MISO=board.GP12)
 
 # FIELD CONFIG PARAMETERS
 RF_RXEN.value = 0;
@@ -67,7 +67,7 @@ cut_away_message = "KN6NAQ!CMD65"
 def SD_Init():
     try:
         print("init sd...")
-        sdcard = sdcardio.SDCard(spi_1, CS_SD, baudrate=250000)
+        sdcard = sdcardio.SDCard(spi1, CS_SD, baudrate=250000)
         print("sector count:", sdcard.count())
         
         vfs = storage.VfsFat(sdcard)
